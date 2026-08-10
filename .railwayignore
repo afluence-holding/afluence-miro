@@ -1,0 +1,6 @@
+# Railway only needs the deployment definition because the Dockerfile extends
+# the official pre-built AFFiNE image. Excluding the monorepo keeps deploys fast.
+*
+!Dockerfile
+!railway.toml
+!README.md
