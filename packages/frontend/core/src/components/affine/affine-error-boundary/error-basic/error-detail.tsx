@@ -1,6 +1,6 @@
 import { Scrollable, ThemedImg } from '@affine/component';
 import { useAsyncCallback } from '@affine/core/components/hooks/affine-async-hooks';
-import { Trans, useI18n } from '@affine/i18n';
+import { useI18n } from '@affine/i18n';
 import { ArrowDownSmallIcon } from '@blocksuite/icons/rc';
 import type { FC, PropsWithChildren, ReactNode } from 'react';
 import { useCallback, useState } from 'react';
@@ -135,18 +135,5 @@ export const ErrorDetail: FC<ErrorDetailProps> = props => {
 };
 
 export function ContactUS() {
-  return (
-    <Trans
-      i18nKey="com.affine.error.contact-us"
-      components={{
-        1: (
-          <a
-            style={{ color: 'var(--affine-primary-color)' }}
-            href="https://affine.pro/redirect/discord"
-            target="__blank"
-          />
-        ),
-      }}
-    />
-  );
+  return null;
 }

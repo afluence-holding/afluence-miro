@@ -1,5 +1,4 @@
 import {
-  IconButton,
   Menu,
   MenuItem,
   type MenuProps,
@@ -8,11 +7,7 @@ import {
 import { useAsyncCallback } from '@affine/core/components/hooks/affine-async-hooks';
 import { inferOpenMode } from '@affine/core/utils';
 import { useI18n } from '@affine/i18n';
-import {
-  DualLinkIcon,
-  InformationIcon,
-  TemplateIcon,
-} from '@blocksuite/icons/rc';
+import { InformationIcon, TemplateIcon } from '@blocksuite/icons/rc';
 import { useLiveData, useService } from '@toeverything/infra';
 import { useCallback, useState } from 'react';
 
@@ -63,15 +58,6 @@ const Empty = () => {
       <span className={styles.emptyText}>
         {t['com.affine.template-list.empty']()}
       </span>
-      <div className={styles.space} />
-      <a
-        href="https://affine.pro/blog/how-to-use-template"
-        target="_blank"
-        rel="noopener noreferrer"
-        className={styles.link}
-      >
-        <IconButton icon={<DualLinkIcon />} />
-      </a>
     </div>
   );
 };

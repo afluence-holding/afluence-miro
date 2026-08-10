@@ -10,7 +10,7 @@ import { WorkspaceQuotaService } from '@affine/core/modules/quota';
 import { WorkspaceService } from '@affine/core/modules/workspace';
 import { copyTextToClipboard } from '@affine/core/utils/clipboard';
 import { UserFriendlyError } from '@affine/error';
-import { Trans, useI18n } from '@affine/i18n';
+import { useI18n } from '@affine/i18n';
 import { CopyIcon, FileIcon } from '@blocksuite/icons/rc';
 import { useService } from '@toeverything/infra';
 import { useCallback, useEffect, useState } from 'react';
@@ -141,21 +141,6 @@ export const UploadLicenseModal = ({
             {t[
               'com.affine.settings.workspace.license.self-host-team.upload-license-file.tips.title'
             ]()}
-          </div>
-          <div className={styles.tipsContent}>
-            <Trans
-              i18nKey="com.affine.settings.workspace.license.self-host-team.upload-license-file.tips.content"
-              components={{
-                1: (
-                  <a
-                    href={`${BUILD_CONFIG.requestLicenseUrl}?usp=pp_url&entry.1000023=${workspace.id}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={styles.textLink}
-                  />
-                ),
-              }}
-            />
           </div>
           <div className={styles.workspaceIdContainer}>
             <div className={styles.workspaceIdLabel}>

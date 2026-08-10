@@ -7,7 +7,6 @@ import useSWR from 'swr';
 
 import { Button } from '../../ui/button';
 import { Checkbox } from '../../ui/checkbox';
-import { Divider } from '../../ui/divider';
 import Input from '../../ui/input';
 import { ScrollableContainer } from '../../ui/scrollbar';
 import * as styles from './onboarding-page.css';
@@ -70,27 +69,6 @@ export const ScrollableLayout = ({
       <ScrollableContainer className={styles.scrollableContainer}>
         <div className={styles.onboardingContainer}>{children}</div>
       </ScrollableContainer>
-      <footer className={styles.footer}>
-        <div className={styles.linkGroup}>
-          <a
-            className={styles.link}
-            href="https://affine.pro/terms"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Terms of Conditions
-          </a>
-          <Divider orientation="vertical" />
-          <a
-            className={styles.link}
-            href="https://affine.pro/privacy"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Privacy Policy
-          </a>
-        </div>
-      </footer>
     </div>
   );
 };

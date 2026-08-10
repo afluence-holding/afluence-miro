@@ -8,7 +8,6 @@ import { useAppUpdater } from '@affine/core/components/hooks/use-app-updater';
 import { UrlService } from '@affine/core/modules/url';
 import { appIconMap, appNames } from '@affine/core/utils/channel';
 import { useI18n } from '@affine/i18n';
-import { ArrowRightSmallIcon, OpenInNewIcon } from '@blocksuite/icons/rc';
 import { useServices } from '@toeverything/infra';
 import { useCallback } from 'react';
 
@@ -93,16 +92,6 @@ export const AboutAffine = () => {
                 onChange={onSwitchAutoDownload}
               />
             </SettingRow>
-            <SettingRow
-              name={t['com.affine.aboutAFFiNE.changelog.title']()}
-              desc={t['com.affine.aboutAFFiNE.changelog.description']()}
-              style={{ cursor: 'pointer' }}
-              onClick={() => {
-                urlService.openPopupWindow(BUILD_CONFIG.changelogUrl);
-              }}
-            >
-              <ArrowRightSmallIcon />
-            </SettingRow>
           </>
         ) : null}
         <SettingRow
@@ -114,26 +103,6 @@ export const AboutAffine = () => {
             onChange={onSwitchTelemetry}
           />
         </SettingRow>
-      </SettingWrapper>
-      <SettingWrapper title={t['com.affine.aboutAFFiNE.contact.title']()}>
-        <a
-          className={styles.link}
-          rel="noreferrer"
-          href="https://affine.pro"
-          target="_blank"
-        >
-          {t['com.affine.aboutAFFiNE.contact.website']()}
-          <OpenInNewIcon className="icon" />
-        </a>
-        <a
-          className={styles.link}
-          rel="noreferrer"
-          href="https://affine.pro/redirect/discord"
-          target="_blank"
-        >
-          {t['com.affine.aboutAFFiNE.contact.community']()}
-          <OpenInNewIcon className="icon" />
-        </a>
       </SettingWrapper>
       <SettingWrapper title={t['com.affine.aboutAFFiNE.community.title']()}>
         <div className={styles.communityWrapper}>
@@ -152,26 +121,6 @@ export const AboutAffine = () => {
             );
           })}
         </div>
-      </SettingWrapper>
-      <SettingWrapper title={t['com.affine.aboutAFFiNE.legal.title']()}>
-        <a
-          className={styles.link}
-          rel="noreferrer"
-          href="https://affine.pro/privacy"
-          target="_blank"
-        >
-          {t['com.affine.aboutAFFiNE.legal.privacy']()}
-          <OpenInNewIcon className="icon" />
-        </a>
-        <a
-          className={styles.link}
-          rel="noreferrer"
-          href="https://affine.pro/terms"
-          target="_blank"
-        >
-          {t['com.affine.aboutAFFiNE.legal.tos']()}
-          <OpenInNewIcon className="icon" />
-        </a>
       </SettingWrapper>
     </>
   );

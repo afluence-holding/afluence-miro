@@ -9,9 +9,6 @@ const UpdaterButtonInner = () => {
     <AppUpdaterButton
       onQuitAndInstall={appUpdater.quitAndInstall}
       onDownloadUpdate={appUpdater.downloadUpdate}
-      onDismissChangelog={appUpdater.dismissChangelog}
-      onOpenChangelog={appUpdater.openChangelog}
-      changelogUnread={appUpdater.changelogUnread}
       updateReady={!!appUpdater.updateReady}
       updateAvailable={appUpdater.updateAvailable}
       autoDownload={appUpdater.autoDownload}

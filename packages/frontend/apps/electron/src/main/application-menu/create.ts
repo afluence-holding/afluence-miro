@@ -250,14 +250,6 @@ export function createApplicationMenu() {
       role: 'help',
       submenu: [
         {
-          label: 'Learn More',
-          click: async () => {
-            // oxlint-disable-next-line no-var-requires
-            const { shell } = require('electron');
-            await shell.openExternal('https://affine.pro/');
-          },
-        },
-        {
           label: 'Open log file',
           click: async () => {
             await revealLogFile();

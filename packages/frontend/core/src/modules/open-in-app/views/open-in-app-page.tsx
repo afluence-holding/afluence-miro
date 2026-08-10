@@ -1,4 +1,3 @@
-import { Button } from '@affine/component/ui/button';
 import { WorkspaceDialogService } from '@affine/core/modules/dialogs';
 import { appIconMap, appNames } from '@affine/core/utils/channel';
 import { Trans, useI18n } from '@affine/i18n';
@@ -19,8 +18,6 @@ interface OpenAppProps {
   mode?: 'auth' | 'open-doc'; // default to 'auth'
 }
 const channel = BUILD_CONFIG.appBuildType;
-const url =
-  'https://affine.pro/download' + (channel !== 'stable' ? '/beta-canary' : '');
 
 export const OpenInAppPage = ({
   urlToOpen,
@@ -31,10 +28,6 @@ export const OpenInAppPage = ({
   urlToOpen ??= getOpenUrlInDesktopAppLink(window.location.href, true);
   const workspaceDialogService = useServiceOptional(WorkspaceDialogService);
   const t = useI18n();
-
-  const openDownloadLink = useCallback(() => {
-    open(url, '_blank');
-  }, []);
 
   const appIcon = appIconMap[channel];
   const appName = appNames[channel];
@@ -65,36 +58,6 @@ export const OpenInAppPage = ({
           <AfluenceLogo variant="horizontal" size={28} />
         </a>
 
-        <div className={styles.topNavLinks}>
-          <a
-            href="https://affine.pro"
-            target="_blank"
-            rel="noreferrer"
-            className={styles.topNavLink}
-          >
-            Official Website
-          </a>
-          <a
-            href="https://affine.pro/blog"
-            target="_blank"
-            rel="noreferrer"
-            className={styles.topNavLink}
-          >
-            Blog
-          </a>
-          <a
-            href="https://affine.pro/about-us"
-            target="_blank"
-            rel="noreferrer"
-            className={styles.topNavLink}
-          >
-            Contact us
-          </a>
-        </div>
-
-        <Button onClick={openDownloadLink}>
-          {t['com.affine.auth.open.affine.download-app']()}
-        </Button>
       </div>
 
       <div className={styles.centerContent}>

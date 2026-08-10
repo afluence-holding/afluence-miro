@@ -6,10 +6,7 @@ type CmdkEvents = 'quickSearch' | 'recentDocs' | 'searchResultsDocs';
 type AppEvents =
   | 'checkUpdates'
   | 'downloadUpdate'
-  | 'downloadApp'
   | 'quitAndInstall'
-  | 'openChangelog'
-  | 'dismissChangelog'
   | 'contactUs'
   | 'findInPage';
 type NavigationEvents =
@@ -352,7 +349,7 @@ interface PageEvents extends PageDivision {
       docInfo: ['open'];
       docHistory: ['open'];
       updates: ['quitAndInstall'];
-      help: ['contactUs', 'openChangelog'];
+      help: ['contactUs'];
     };
     navigationPanel: {
       $: ['quickSearch', 'createDoc', 'navigate', 'openSettings', 'toggle'];
@@ -380,10 +377,7 @@ interface PageEvents extends PageDivision {
       favorites: ['createDoc', 'drop'];
       migrationData: ['openMigrationDataHelp'];
       bottomButtons: [
-        'downloadApp',
         'quitAndInstall',
-        'openChangelog',
-        'dismissChangelog',
       ];
       others: ['navigate'];
       importModal: ['open'];

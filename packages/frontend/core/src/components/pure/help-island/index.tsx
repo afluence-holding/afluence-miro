@@ -2,9 +2,8 @@ import { Tooltip } from '@affine/component/ui/tooltip';
 import { WorkspaceDialogService } from '@affine/core/modules/dialogs';
 import type { SettingTab } from '@affine/core/modules/dialogs/constant';
 import { GlobalContextService } from '@affine/core/modules/global-context';
-import { UrlService } from '@affine/core/modules/url';
 import { useI18n } from '@affine/i18n';
-import { CloseIcon, NewIcon } from '@blocksuite/icons/rc';
+import { CloseIcon } from '@blocksuite/icons/rc';
 import { useLiveData, useService, useServices } from '@toeverything/infra';
 import { useCallback, useState } from 'react';
 
@@ -17,22 +16,20 @@ import {
 } from './style';
 
 const DEFAULT_SHOW_LIST: IslandItemNames[] = [
-  'whatNew',
   'contact',
   'shortcuts',
 ];
 
 const DESKTOP_SHOW_LIST: IslandItemNames[] = [...DEFAULT_SHOW_LIST];
-type IslandItemNames = 'whatNew' | 'contact' | 'shortcuts';
+type IslandItemNames = 'contact' | 'shortcuts';
 
 const showList = BUILD_CONFIG.isElectron
   ? DESKTOP_SHOW_LIST
   : DEFAULT_SHOW_LIST;
 
 export const HelpIsland = () => {
-  const { globalContextService, urlService } = useServices({
+  const { globalContextService } = useServices({
     GlobalContextService,
-    UrlService,
   });
   const docId = useLiveData(globalContextService.globalContext.docId.$);
   const docMode = useLiveData(globalContextService.globalContext.docMode.$);
@@ -70,18 +67,6 @@ export const HelpIsland = () => {
       <StyledAnimateWrapper
         style={{ height: spread ? `${showList.length * 40 + 4}px` : 0 }}
       >
-        {showList.includes('whatNew') && (
-          <Tooltip content={t['com.affine.appUpdater.whatsNew']()} side="left">
-            <StyledIconWrapper
-              data-testid="right-bottom-change-log-icon"
-              onClick={() => {
-                urlService.openPopupWindow(BUILD_CONFIG.changelogUrl);
-              }}
-            >
-              <NewIcon />
-            </StyledIconWrapper>
-          </Tooltip>
-        )}
         {showList.includes('contact') && (
           <Tooltip content={t['com.affine.helpIsland.contactUs']()} side="left">
             <StyledIconWrapper

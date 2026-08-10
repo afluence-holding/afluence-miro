@@ -5,7 +5,6 @@ import {
   WorkspaceDialogService,
 } from '@affine/core/modules/dialogs';
 import { I18nService } from '@affine/core/modules/i18n';
-import { UrlService } from '@affine/core/modules/url';
 import { WorkbenchService } from '@affine/core/modules/workbench';
 import { WorkspaceService } from '@affine/core/modules/workspace';
 import { useI18n } from '@affine/i18n';
@@ -55,7 +54,6 @@ export function useRegisterWorkspaceCommands() {
   const t = useI18n();
   const theme = useTheme();
   const currentWorkspace = useService(WorkspaceService).workspace;
-  const urlService = useService(UrlService);
   const pageHelper = usePageHelper(currentWorkspace.docCollection);
   const navigationHelper = useNavigateHelper();
   const {
@@ -180,12 +178,11 @@ export function useRegisterWorkspaceCommands() {
   useEffect(() => {
     const unsub = registerAffineHelpCommands({
       t,
-      urlService,
       workspaceDialogService,
     });
 
     return () => {
       unsub();
     };
-  }, [t, globalDialogService, urlService, workspaceDialogService]);
+  }, [t, workspaceDialogService]);
 }

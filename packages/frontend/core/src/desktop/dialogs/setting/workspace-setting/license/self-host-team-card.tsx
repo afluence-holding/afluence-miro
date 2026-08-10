@@ -409,21 +409,6 @@ const ActionModal = ({
         onChange={setKey}
         placeholder="AAAA-AAAA-AAAA-AAAA-AAAA"
       />
-      <span className={styles.tips}>
-        <Trans
-          i18nKey="com.affine.settings.workspace.license.activate-modal.tips"
-          components={{
-            1: (
-              <a
-                href="https://affine.pro/pricing/?type=selfhost#table"
-                target="_blank"
-                rel="noreferrer"
-                style={{ color: cssVarV2('text/link') }}
-              />
-            ),
-          }}
-        />
-      </span>
     </ConfirmModal>
   );
 };

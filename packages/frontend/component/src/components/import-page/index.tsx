@@ -46,14 +46,7 @@ export const ImportPage = ({
     <div className={importPageBodyStyle}>
       <div className="title">Import</div>
       <span>
-        Afluence Miro will gradually support more and more file types for import.&nbsp;
-        <a
-          href="https://affine.pro/redirect/discord"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Provide feedback.
-        </a>
+        Afluence Miro will gradually support more and more file types for import.
       </span>
     </div>
     <div className={importPageButtonContainerStyle}>

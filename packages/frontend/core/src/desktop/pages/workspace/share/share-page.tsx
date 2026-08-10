@@ -1,4 +1,4 @@
-import { AfluenceLogo, Scrollable, uniReactRoot } from '@affine/component';
+import { Scrollable, uniReactRoot } from '@affine/component';
 import type { AffineEditorContainer } from '@affine/core/blocksuite/block-suite-editor';
 import { EditorOutlineViewer } from '@affine/core/blocksuite/outline-viewer';
 import { useActiveBlocksuiteEditor } from '@affine/core/components/hooks/use-block-suite-editor';
@@ -390,27 +390,4 @@ const SharePageInner = ({
   );
 };
 
-const SharePageFooter = () => {
-  const t = useI18n();
-  const editorService = useService(EditorService);
-  const isPresent = useLiveData(editorService.editor.isPresenting$);
-  const authService = useService(AuthService);
-  const loginStatus = useLiveData(authService.session.status$);
-
-  if (isPresent || loginStatus === 'authenticated') {
-    return null;
-  }
-  return (
-    <a
-      href="https://affine.pro"
-      target="_blank"
-      className={styles.link}
-      rel="noreferrer"
-    >
-      <span className={styles.linkText}>
-        {t['com.affine.share-page.footer.built-with']()}
-      </span>
-      <AfluenceLogo size={20} />
-    </a>
-  );
-};
+const SharePageFooter = () => null;

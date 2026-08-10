@@ -1,15 +1,12 @@
 // todo(@pengx17): remove jotai
-import { UrlService } from '@affine/core/modules/url';
 import type { UpdateMeta } from '@affine/electron-api';
 import { apis, events } from '@affine/electron-api';
 import { track } from '@affine/track';
-import { appSettingAtom, useService } from '@toeverything/infra';
+import { appSettingAtom } from '@toeverything/infra';
 import { atom, useAtom, useAtomValue } from 'jotai';
-import { atomWithObservable, atomWithStorage } from 'jotai/utils';
+import { atomWithObservable } from 'jotai/utils';
 import { useCallback, useState } from 'react';
 import { Observable } from 'rxjs';
-
-import { useAsyncCallback } from './affine-async-hooks';
 
 function rpcToObservable<
   T,
@@ -68,11 +65,6 @@ export const downloadProgressAtom = atomWithObservable(() => {
   });
 });
 
-export const changelogCheckedAtom = atomWithStorage<Record<string, boolean>>(
-  'affine:client-changelog-checked',
-  {}
-);
-
 export const checkingForUpdatesAtom = atom(false);
 
 export const currentVersionAtom = atom(async () => {
@@ -80,37 +72,11 @@ export const currentVersionAtom = atom(async () => {
   return currentVersion;
 });
 
-const currentChangelogUnreadAtom = atom(
-  async get => {
-    const mapping = get(changelogCheckedAtom);
-    const currentVersion = await get(currentVersionAtom);
-    if (currentVersion) {
-      return !mapping[currentVersion];
-    }
-    return false;
-  },
-  async (get, set, v: boolean) => {
-    const currentVersion = await get(currentVersionAtom);
-    if (currentVersion) {
-      set(changelogCheckedAtom, mapping => {
-        return {
-          ...mapping,
-          [currentVersion]: v,
-        };
-      });
-    }
-  }
-);
-
 export const useAppUpdater = () => {
   const [appQuitting, setAppQuitting] = useState(false);
   const updateReady = useAtomValue(updateReadyAtom);
-  const urlService = useService(UrlService);
   const [setting, setSetting] = useAtom(appSettingAtom);
   const downloadProgress = useAtomValue(downloadProgressAtom);
-  const [changelogUnread, setChangelogUnread] = useAtom(
-    currentChangelogUnreadAtom
-  );
 
   const [checkingForUpdates, setCheckingForUpdates] = useAtom(
     checkingForUpdatesAtom
@@ -177,17 +143,6 @@ export const useAppUpdater = () => {
     [setSetting]
   );
 
-  const openChangelog = useAsyncCallback(async () => {
-    track.$.navigationPanel.bottomButtons.openChangelog();
-    urlService.openPopupWindow(BUILD_CONFIG.changelogUrl);
-    await setChangelogUnread(true);
-  }, [setChangelogUnread, urlService]);
-
-  const dismissChangelog = useAsyncCallback(async () => {
-    track.$.navigationPanel.bottomButtons.dismissChangelog();
-    await setChangelogUnread(true);
-  }, [setChangelogUnread]);
-
   return {
     quitAndInstall,
     checkForUpdates,
@@ -198,9 +153,6 @@ export const useAppUpdater = () => {
     checkingForUpdates,
     autoCheck: setting.autoCheckUpdate,
     autoDownload: setting.autoDownloadUpdate,
-    changelogUnread,
-    openChangelog,
-    dismissChangelog,
     updateReady,
     updateAvailable: useAtomValue(updateAvailableAtom),
     downloadProgress,

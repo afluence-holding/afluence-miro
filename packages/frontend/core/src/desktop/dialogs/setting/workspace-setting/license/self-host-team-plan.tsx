@@ -1,9 +1,7 @@
-import { Button } from '@affine/component';
 import { WorkspacePermissionService } from '@affine/core/modules/permissions';
 import { useI18n } from '@affine/i18n';
 import { DoneIcon } from '@blocksuite/icons/rc';
 import { useLiveData, useService } from '@toeverything/infra';
-import { useCallback } from 'react';
 
 import * as styles from './self-host-team-plan.css';
 
@@ -16,10 +14,6 @@ export const SelfHostTeamPlan = () => {
 
   const permission = useService(WorkspacePermissionService).permission;
   const isTeam = useLiveData(permission.isTeam$);
-
-  const handleClick = useCallback(() => {
-    window.open(BUILD_CONFIG.pricingUrl, '_blank');
-  }, []);
 
   if (isTeam) {
     return null;
@@ -68,11 +62,6 @@ export const SelfHostTeamPlan = () => {
         </div>
       </div>
 
-      <div className={styles.leanMoreButtonContainer}>
-        <Button onClick={handleClick}>
-          {t['com.affine.settings.workspace.license.learn-more']()}
-        </Button>
-      </div>
     </div>
   );
 };

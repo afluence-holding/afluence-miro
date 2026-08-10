@@ -45,17 +45,8 @@ const getPlayList = (t: Translate): Array<PlayListItem> => [
     desc: (
       <Trans
         i18nKey="com.affine.ai-onboarding.general.5.description"
-        values={{ link: 'ai.affine.pro' }}
-        components={{
-          a: (
-            <a
-              className={styles.link}
-              href="https://ai.affine.pro"
-              target="_blank"
-              rel="noreferrer"
-            />
-          ),
-        }}
+        values={{ link: 'AI' }}
+        components={{ a: <span className={styles.link} /> }}
       />
     ),
   },
@@ -212,23 +203,6 @@ export const AIOnboardingGeneral = () => {
             preload={5}
           />
         </main>
-
-        <section
-          className={styles.privacy}
-          aria-hidden={!isLast || !!aiSubscription}
-        >
-          <Trans
-            i18nKey="com.affine.ai-onboarding.general.privacy"
-            components={{
-              a: (
-                <a
-                  className={styles.privacyLink}
-                  href="https://affine.pro/terms#ai"
-                />
-              ),
-            }}
-          />
-        </section>
 
         <footer
           className={styles.footer}
