@@ -12,7 +12,7 @@ export const DocumentTitle = () => {
 
   useEffect(() => {
     const prefix = notificationCount > 0 ? `(${notificationCount}) ` : '';
-    document.title = prefix + (viewTitle ? `${viewTitle} · Miro` : 'Miro');
+    document.title = prefix + (viewTitle ? `Miro · ${viewTitle}` : 'Miro');
 
     return () => {
       document.title = 'Miro';
