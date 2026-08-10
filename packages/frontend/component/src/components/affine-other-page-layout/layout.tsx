@@ -1,4 +1,4 @@
-import { AfluenceLogo } from '@affine/component/branding';
+import { AfluenceLogo } from '@affine/component';
 import { Button } from '@affine/component/ui/button';
 import { useI18n } from '@affine/i18n';
 import { useTheme } from 'next-themes';

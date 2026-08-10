@@ -1,4 +1,4 @@
-import { AfluenceLogo } from '@affine/component/branding';
+import { AfluenceLogo } from '@affine/component';
 import clsx from 'clsx';
 import type { FC } from 'react';
 

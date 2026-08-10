@@ -2,7 +2,7 @@ import { Button } from '@affine/component/ui/button';
 import { WorkspaceDialogService } from '@affine/core/modules/dialogs';
 import { appIconMap, appNames } from '@affine/core/utils/channel';
 import { Trans, useI18n } from '@affine/i18n';
-import { AfluenceLogo } from '@affine/component/branding';
+import { AfluenceLogo } from '@affine/component';
 import { LocalWorkspaceIcon } from '@blocksuite/icons/rc';
 import { useServiceOptional } from '@toeverything/infra';
 import type { MouseEvent } from 'react';
