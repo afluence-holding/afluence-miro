@@ -1,6 +1,4 @@
-# Railway only needs the deployment definition because the Dockerfile extends
-# the official pre-built AFFiNE image. Excluding the monorepo keeps deploys fast.
-*
-!Dockerfile
-!railway.toml
-!README.md
+# Never exclude application source: Dockerfile builds the Afluence Miro web and
+# admin bundles from this repository before layering them into the server image.
+# Docker's own .dockerignore handles local artifacts and keeps the build context
+# lean.
