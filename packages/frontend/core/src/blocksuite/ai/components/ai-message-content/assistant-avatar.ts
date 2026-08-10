@@ -30,7 +30,7 @@ export class AssistantAvatar extends ShadowlessElement {
         ? AIStarIconWithAnimation
         : AffineAvatarIcon
     }
-    AFFiNE AI`;
+    Afluence Miro AI`;
   }
 }
 

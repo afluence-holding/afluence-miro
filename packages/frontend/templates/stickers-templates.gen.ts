@@ -1753,7 +1753,7 @@ const templates = {
         hash: "JqWfcP9Q0kGE4wDuVZCi4lW2U7O15trpL--fdNrRJvQ=",
       }),],
 "Contorted Stickers": [     buildStickerTemplate({
-        name: "AFFiNE",
+        name: "Afluence Miro",
         cover: stickerCover201,
         content: stickerContent201,
         hash: "i3piAMnoD4STQnEjTrAe_ZRdwHcD34n-sJZY8IN1blg=",
@@ -1855,7 +1855,7 @@ const templates = {
         hash: "yKPa7vqOxC6rh-e0SVdlp0RwMWQ9mzDKTtE5g2UnHGk=",
       }),
      buildStickerTemplate({
-        name: "AFFiNE AI",
+        name: "Afluence Miro AI",
         cover: stickerCover218,
         content: stickerContent218,
         hash: "FwBs2WApEGkiFmu1XR4fHZ_7fOlSsSBdYEyGs2lDeLk=",

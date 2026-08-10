@@ -32,7 +32,7 @@ function notifySessionOnlySignIn(sessionOnly?: boolean) {
   notify.warning({
     title: 'Sign-in is only valid for this session',
     message:
-      'Encrypted storage is unavailable, so you will need to sign in again after restarting AFFiNE.',
+      'Encrypted storage is unavailable, so you will need to sign in again after restarting Afluence Miro.',
   });
 }
 

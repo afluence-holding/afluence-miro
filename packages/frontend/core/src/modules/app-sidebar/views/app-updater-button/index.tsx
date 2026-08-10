@@ -199,9 +199,7 @@ export function AppUpdaterButton({
           onDownloadUpdate();
         }
       } else {
-        urlService.openPopupWindow(
-          `https://github.com/toeverything/AFFiNE/releases/tag/v${updateAvailable.version}`
-        );
+        urlService.openPopupWindow('https://byafluence.com');
       }
     } else if (changelogUnread) {
       onOpenChangelog();

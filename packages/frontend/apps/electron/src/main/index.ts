@@ -59,7 +59,8 @@ app.commandLine.appendSwitch('force-color-profile', 'srgb');
 
 // use the same data for internal & beta for testing
 if (overrideSession) {
-  const appName = buildType === 'stable' ? 'AFFiNE' : `AFFiNE-${buildType}`;
+  const appName =
+    buildType === 'stable' ? 'Afluence Miro' : `Afluence Miro-${buildType}`;
   const userDataPath = path.join(app.getPath('appData'), appName);
   app.setPath('userData', userDataPath);
   app.setPath('sessionData', userDataPath);

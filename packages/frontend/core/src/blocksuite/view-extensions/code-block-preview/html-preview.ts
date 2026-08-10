@@ -136,7 +136,7 @@ export class HTMLPreview extends SignalWatcher(
             () =>
               html`<div class="html-preview-fallback">
                 This feature is not supported in your browser. Please download
-                the AFFiNE Desktop App to use it.
+                the Afluence Miro desktop app to use it.
               </div>`,
           ],
         ])}

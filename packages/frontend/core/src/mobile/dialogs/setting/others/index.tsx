@@ -21,22 +21,22 @@ export const OthersGroup = () => {
       />
       <RowLayout
         label={t['com.affine.mobile.setting.others.github']()}
-        href="https://github.com/toeverything/AFFiNE"
+        href="https://byafluence.com"
       />
 
       <RowLayout
         label={t['com.affine.mobile.setting.others.website']()}
-        href="https://affine.pro/"
+        href="https://byafluence.com"
       />
 
       <RowLayout
         label={t['com.affine.mobile.setting.others.privacy']()}
-        href="https://affine.pro/privacy"
+        href="https://byafluence.com"
       />
 
       <RowLayout
         label={t['com.affine.mobile.setting.others.terms']()}
-        href="https://affine.pro/terms"
+        href="https://byafluence.com"
       />
       <DeleteAccount />
     </SettingGroup>

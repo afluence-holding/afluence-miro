@@ -208,7 +208,7 @@ export class AIErrorWrapper extends SignalWatcher(WithDisposable(LitElement)) {
 
 const PaymentRequiredErrorRenderer = (host?: EditorHost | null) => html`
   <ai-error-wrapper
-    .text=${"You've reached the current usage cap for AFFiNE AI. You can subscribe to AFFiNE AI(with free 7-day-trial) to continue the AI experience!"}
+    .text=${"You've reached the current usage cap for Afluence Miro AI. You can subscribe to Afluence Miro AI (with a free 7-day trial) to continue the AI experience!"}
     .actionText=${'Upgrade'}
     .onClick=${() => AIAppEvents.requestUpgradePlan.next({ host })}
   ></ai-error-wrapper>
@@ -216,7 +216,7 @@ const PaymentRequiredErrorRenderer = (host?: EditorHost | null) => html`
 
 const LoginRequiredErrorRenderer = (host?: EditorHost | null) => html`
   <ai-error-wrapper
-    .text=${'You need to login to AFFiNE Cloud to continue using AFFiNE AI.'}
+    .text=${'You need to login to Afluence Miro Cloud to continue using Afluence Miro AI.'}
     .actionText=${'Login'}
     .onClick=${() => AIAppEvents.requestLogin.next({ host })}
   ></ai-error-wrapper>

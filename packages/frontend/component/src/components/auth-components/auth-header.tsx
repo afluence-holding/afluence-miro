@@ -1,4 +1,4 @@
-import { Logo1Icon } from '@blocksuite/icons/rc';
+import { AfluenceLogo } from '@affine/component/branding';
 import clsx from 'clsx';
 import type { FC } from 'react';
 
@@ -12,7 +12,7 @@ export const AuthHeader: FC<{
   return (
     <div className={clsx(authHeaderWrapper, className)}>
       <p>
-        <Logo1Icon className="logo" />
+        <AfluenceLogo className="logo" />
         {title}
       </p>
       <p>{subTitle}</p>

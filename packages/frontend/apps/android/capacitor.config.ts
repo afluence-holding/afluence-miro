@@ -16,7 +16,7 @@ interface AppConfig {
 
 const config: CapacitorConfig & AppConfig = {
   appId: 'app.affine.pro',
-  appName: 'AFFiNE',
+  appName: 'Afluence Miro',
   webDir: 'dist',
   affineVersion: packageJson.version,
   android: {

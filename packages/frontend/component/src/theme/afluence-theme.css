@@ -1,0 +1,80 @@
+/* Afluence Miro: high-contrast monochrome built from the official black, white
+ * and silver identity. These tokens deliberately sit after the upstream theme. */
+html[data-theme='light'] {
+  --affine-brand-color: #17191b;
+  --affine-primary-color: #17191b;
+  --affine-primary-color-04: rgb(23 25 27 / 8%);
+  --affine-tertiary-color: #f1f2f2;
+  --affine-background-primary-color: #fdfdfc;
+  --affine-background-secondary-color: #f5f5f3;
+  --affine-background-tertiary-color: #e8e9e8;
+  --affine-background-overlay-panel-color: #ffffff;
+  --affine-background-code-block: #f6f6f4;
+  --affine-text-primary-color: #101112;
+  --affine-text-secondary-color: #64686a;
+  --affine-text-disable-color: #9b9ea0;
+  --affine-text-emphasis-color: #101112;
+  --affine-icon-color: #565a5d;
+  --affine-border-color: #d7d9d8;
+  --affine-divider-color: #e2e3e2;
+  --affine-hover-color: rgb(16 17 18 / 5%);
+  --affine-hover-color-filled: #eeeeec;
+  --affine-link-color: #222527;
+  --affine-v2-icon-activated: #17191b;
+  --affine-v2-icon-primary: #303335;
+  --affine-v2-icon-secondary: #6e7274;
+  --affine-v2-layer-insideBorder-border: #d7d9d8;
+  --affine-v2-layer-background-overlayPanel: #ffffff;
+  --affine-v2-layer-background-primary: #fdfdfc;
+  --affine-v2-layer-background-secondary: #f5f5f3;
+  --affine-v2-layer-background-tertiary: #e8e9e8;
+  --affine-v2-text-emphasis: #17191b;
+  --affine-v2-text-primary: #101112;
+  --affine-v2-text-secondary: #64686a;
+  --affine-v2-text-tertiary: #85898b;
+}
+
+html[data-theme='dark'] {
+  --affine-brand-color: #f4f4f2;
+  --affine-primary-color: #f4f4f2;
+  --affine-primary-color-04: rgb(244 244 242 / 11%);
+  --affine-tertiary-color: #151719;
+  --affine-background-primary-color: #070809;
+  --affine-background-secondary-color: #0e1012;
+  --affine-background-tertiary-color: #171a1c;
+  --affine-background-overlay-panel-color: #111315;
+  --affine-background-code-block: #0d0f11;
+  --affine-background-modal-color: rgb(0 0 0 / 75%);
+  --affine-text-primary-color: #f1f2f0;
+  --affine-text-secondary-color: #a7abad;
+  --affine-text-disable-color: #6d7275;
+  --affine-text-emphasis-color: #ffffff;
+  --affine-icon-color: #c1c5c5;
+  --affine-border-color: #25292b;
+  --affine-divider-color: #303436;
+  --affine-hover-color: rgb(255 255 255 / 7%);
+  --affine-hover-color-filled: #1b1e20;
+  --affine-link-color: #f1f2f0;
+  --affine-button-shadow:
+    0 1px 0 rgb(255 255 255 / 4%) inset, 0 12px 32px rgb(0 0 0 / 40%);
+  --affine-overlay-panel-shadow:
+    0 20px 52px rgb(0 0 0 / 55%), 0 0 0 1px rgb(255 255 255 / 3%) inset;
+  --affine-menu-shadow:
+    0 24px 48px rgb(0 0 0 / 62%), 0 0 0 1px rgb(255 255 255 / 4%) inset;
+  --affine-toolbar-shadow: 0 12px 28px rgb(0 0 0 / 54%);
+  --affine-shadow-1: 0 4px 12px rgb(0 0 0 / 32%);
+  --affine-shadow-2: 0 12px 28px rgb(0 0 0 / 42%);
+  --affine-shadow-3: 0 20px 44px rgb(0 0 0 / 52%);
+  --affine-v2-icon-activated: #ffffff;
+  --affine-v2-icon-primary: #f1f2f0;
+  --affine-v2-icon-secondary: #c4c7c7;
+  --affine-v2-layer-insideBorder-border: #25292b;
+  --affine-v2-layer-background-overlayPanel: #111315;
+  --affine-v2-layer-background-primary: #070809;
+  --affine-v2-layer-background-secondary: #0e1012;
+  --affine-v2-layer-background-tertiary: #171a1c;
+  --affine-v2-text-emphasis: #ffffff;
+  --affine-v2-text-primary: #f1f2f0;
+  --affine-v2-text-secondary: #a7abad;
+  --affine-v2-text-tertiary: #72777a;
+}

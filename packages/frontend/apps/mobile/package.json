@@ -1,7 +1,7 @@
 {
   "name": "@affine/mobile",
   "version": "0.27.0",
-  "description": "AFFiNE Desktop Web application",
+  "description": "Afluence Miro Mobile application",
   "private": true,
   "browser": "src/index.tsx",
   "scripts": {

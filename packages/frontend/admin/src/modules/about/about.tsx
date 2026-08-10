@@ -12,41 +12,41 @@ import {
 type Channel = 'stable' | 'canary' | 'beta' | 'internal';
 
 const appNames = {
-  stable: 'AFFiNE',
-  canary: 'AFFiNE Canary',
-  beta: 'AFFiNE Beta',
-  internal: 'AFFiNE Internal',
+  stable: 'Afluence Miro',
+  canary: 'Afluence Miro Canary',
+  beta: 'Afluence Miro Beta',
+  internal: 'Afluence Miro Internal',
 } satisfies Record<Channel, string>;
 const appName = appNames[BUILD_CONFIG.appBuildType];
 
 const links = [
   {
-    href: BUILD_CONFIG.githubUrl,
+    href: 'https://byafluence.com',
     icon: <GithubIcon size={20} />,
-    label: 'Star AFFiNE on GitHub',
+    label: 'Visit Afluence',
   },
   {
-    href: BUILD_CONFIG.githubUrl,
+    href: 'https://byafluence.com',
     icon: <MailWarningIcon size={20} />,
     label: 'Report an Issue',
   },
   {
-    href: 'https://docs.affine.pro/docs/self-host-affine',
+    href: 'https://byafluence.com',
     icon: <AlbumIcon size={20} />,
     label: 'Self-host Document',
   },
   {
-    href: 'https://affine.pro/pricing/?type=selfhost#table',
+    href: 'https://byafluence.com',
     icon: <UploadCloudIcon size={20} />,
     label: 'Upgrade to Team',
   },
 ];
 
-export function AboutAFFiNE() {
+export function AboutAfluenceMiro() {
   return (
     <div className="flex flex-col h-full gap-3 py-5 px-6 w-full">
       <div className="flex items-center">
-        <span className="text-xl font-semibold">About AFFiNE</span>
+        <span className="text-xl font-semibold">About Afluence Miro</span>
       </div>
       <div className="overflow-y-auto space-y-[10px]">
         <div className="flex flex-col rounded-md border">

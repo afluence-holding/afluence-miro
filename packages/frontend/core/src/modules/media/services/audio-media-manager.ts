@@ -125,7 +125,7 @@ export class AudioMediaManagerService extends Service {
           blobId: descriptor.blobId,
           metadata: new MediaMetadata({
             title: descriptor.name,
-            artist: 'AFFiNE',
+            artist: 'Afluence Miro',
             // todo: add artwork, like the app icon?
           }),
         })

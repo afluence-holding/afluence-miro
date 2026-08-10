@@ -38,7 +38,7 @@ export const BUILD_IN_SERVERS: (ServerMetadata & { config: ServerConfig })[] =
               ? 'http://localhost:8080'
               : location.origin,
             config: {
-              serverName: 'AFFiNE Cloud',
+              serverName: 'Afluence Miro Cloud',
               features: [
                 ServerFeature.Indexer,
                 ServerFeature.Copilot,
@@ -71,7 +71,7 @@ export const BUILD_IN_SERVERS: (ServerMetadata & { config: ServerConfig })[] =
                   : 'https://app.affine.pro'
                 : location.origin,
               config: {
-                serverName: 'AFFiNE Cloud',
+                serverName: 'Afluence Miro Cloud',
                 features: [
                   ServerFeature.Indexer,
                   ServerFeature.Copilot,
@@ -104,7 +104,7 @@ export const BUILD_IN_SERVERS: (ServerMetadata & { config: ServerConfig })[] =
                     : 'https://insider.affine.pro'
                   : location.origin,
                 config: {
-                  serverName: 'AFFiNE Cloud',
+                  serverName: 'Afluence Miro Cloud',
                   features: [
                     ServerFeature.Indexer,
                     ServerFeature.Copilot,
@@ -133,7 +133,7 @@ export const BUILD_IN_SERVERS: (ServerMetadata & { config: ServerConfig })[] =
                   id: 'affine-cloud',
                   baseUrl: 'https://insider.affine.pro',
                   config: {
-                    serverName: 'AFFiNE Cloud',
+                    serverName: 'Afluence Miro Cloud',
                     features: [
                       ServerFeature.Indexer,
                       ServerFeature.Copilot,
@@ -164,7 +164,7 @@ export const BUILD_IN_SERVERS: (ServerMetadata & { config: ServerConfig })[] =
                       ? 'https://affine.fail'
                       : location.origin,
                     config: {
-                      serverName: 'AFFiNE Cloud',
+                      serverName: 'Afluence Miro Cloud',
                       features: [
                         ServerFeature.Indexer,
                         ServerFeature.Copilot,

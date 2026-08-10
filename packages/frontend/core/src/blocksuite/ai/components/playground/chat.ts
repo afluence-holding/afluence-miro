@@ -336,7 +336,7 @@ export class PlaygroundChat extends SignalWatcher(
               ? html`<span data-testid="chat-panel-embedding-progress"
                   >Synchronizing sources</span
                 >`
-              : 'AFFiNE AI'
+              : 'Afluence Miro AI'
           }
         </div>
         <div class="chat-panel-add" @click=${this.addChat}>
