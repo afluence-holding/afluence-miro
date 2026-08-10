@@ -5,9 +5,5 @@ dockerfilePath = "Dockerfile"
 [deploy]
 # AFFiNE's supported self-host migration performs both Prisma and data migrations.
 preDeployCommand = "node ./scripts/self-host-predeploy.js"
-# The root route is the web app and is gated while the first administrator is
-# being created. `/info` is AFFiNE's public, lightweight server endpoint.
-healthcheckPath = "/info"
-healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
