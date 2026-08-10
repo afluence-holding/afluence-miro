@@ -5,6 +5,11 @@ FROM node:22-bookworm-slim AS frontend-build
 
 WORKDIR /app
 ENV CI=true
+# The bundler records a revision in index.html. Railway's Docker build context
+# intentionally excludes .git, so provide a deterministic build identifier
+# instead of requiring the repository metadata at build time.
+ARG GIT_SHA=afluence-miro
+ENV GITHUB_SHA=${GIT_SHA}
 
 COPY . .
 
