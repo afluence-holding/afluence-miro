@@ -3,7 +3,7 @@ import { SignOutIcon } from '@blocksuite/icons/rc';
 import type { JSX } from 'react';
 
 import { Avatar } from '../../ui/avatar';
-import { Button, IconButton } from '../../ui/button';
+import { IconButton } from '../../ui/button';
 import { ThemedImg } from '../../ui/themed-img';
 import { AffineOtherPageLayout } from '../affine-other-page-layout';
 import illustrationDark from '../affine-other-page-layout/assets/other-page.dark.png';
@@ -12,7 +12,6 @@ import type { User } from '../auth-components';
 import {
   illustration,
   info,
-  largeButtonEffect,
   notFoundPageContainer,
   wrapper,
 } from './styles.css';
@@ -38,16 +37,6 @@ export const NoPermissionOrNotFound = ({
           <>
             <div className={info}>
               <p className={wrapper}>{t['404.hint']()}</p>
-              <div className={wrapper}>
-                <Button
-                  variant="primary"
-                  size="extraLarge"
-                  onClick={onBack}
-                  className={largeButtonEffect}
-                >
-                  {t['404.back']()}
-                </Button>
-              </div>
               <div className={wrapper}>
                 <Avatar url={user.avatar ?? user.image} name={user.label} />
                 <span style={{ margin: '0 12px' }}>{user.email}</span>
@@ -89,16 +78,6 @@ export const NotFoundPage = ({
       <div className={notFoundPageContainer} data-testid="not-found">
         <div className={info}>
           <p className={wrapper}>{t['404.hint']()}</p>
-          <div className={wrapper}>
-            <Button
-              variant="primary"
-              size="extraLarge"
-              onClick={onBack}
-              className={largeButtonEffect}
-            >
-              {t['404.back']()}
-            </Button>
-          </div>
           {user ? (
             <div className={wrapper}>
               <Avatar url={user.avatar ?? user.image} name={user.label} />
