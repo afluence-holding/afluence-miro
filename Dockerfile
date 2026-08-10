@@ -23,3 +23,9 @@ FROM ghcr.io/toeverything/affine:stable
 
 COPY --from=frontend-build /app/packages/frontend/apps/web/dist /app/static
 COPY --from=frontend-build /app/packages/frontend/admin/dist /app/static/admin
+
+# The self-host server may route favicon and PWA requests through its mobile
+# static directory based on the user agent. The upstream image still contains
+# AFFiNE's mobile icons there, so mirror Afluence Miro's public branding into
+# that directory as well.
+COPY --from=frontend-build /app/packages/frontend/core/public/ /app/static/mobile/
