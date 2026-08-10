@@ -15,6 +15,11 @@
     />
 
     <title>Miro</title>
+    <script>
+      window.addEventListener('pagehide', () => {
+        document.title = 'Miro';
+      });
+    </script>
     <meta name="theme-color" content="#070809" />
     <%= PRECONNECT %>
     <link rel="manifest" href="/manifest.json" />
