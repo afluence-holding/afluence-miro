@@ -3,7 +3,6 @@ import { RootAppSidebar } from '@affine/core/components/root-app-sidebar';
 import { AppSidebarService } from '@affine/core/modules/app-sidebar';
 import {
   AppSidebarFallback,
-  OpenInAppCard,
   SidebarSwitch,
 } from '@affine/core/modules/app-sidebar/views';
 import { AppTabsHeader } from '@affine/core/modules/app-tabs-header';
@@ -95,7 +94,6 @@ const BrowserLayout = ({
 
   return (
     <div className={styles.browserAppViewContainer}>
-      <OpenInAppCard />
       {fallback ? <AppSidebarFallback /> : isInWorkspace && <RootAppSidebar />}
       <MainContainer>{children}</MainContainer>
     </div>

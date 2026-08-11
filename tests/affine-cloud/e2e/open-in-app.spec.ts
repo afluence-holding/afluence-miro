@@ -30,30 +30,10 @@ test.afterEach(async () => {
   await deleteUser(user.email);
 });
 
-test('open in app card should be shown for cloud workspace', async ({
-  page,
-}) => {
-  await expect(page.getByTestId('open-in-app-card')).toBeVisible();
-
-  await page
-    .getByTestId('open-in-app-card')
-    .getByRole('checkbox', {
-      name: 'Remember choice',
-    })
-    .locator('input')
-    .click();
-
-  await page
-    .getByRole('button', {
-      name: 'Dismiss',
-    })
-    .click();
-
-  await expect(page.getByTestId('open-in-app-card')).not.toBeInViewport();
+test('open in app card is never shown for cloud workspace', async ({ page }) => {
+  await expect(page.getByTestId('open-in-app-card')).toHaveCount(0);
 
   await page.reload();
 
-  await expect(page.getByTestId('open-in-app-card')).not.toBeInViewport();
-
-  // seems there is no way to bypass the open popup blocker via playwright
+  await expect(page.getByTestId('open-in-app-card')).toHaveCount(0);
 });

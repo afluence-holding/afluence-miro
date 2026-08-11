@@ -60,7 +60,7 @@ export class OpenInAppService extends Service {
           shouldOpenInApp = true;
           break;
         case OpenLinkMode.ALWAYS_ASK:
-          this.showOpenInAppBanner$.next(true);
+          // The browser experience must never prompt users to open the desktop app.
           break;
         default:
           break;
