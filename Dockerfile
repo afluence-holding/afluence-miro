@@ -39,7 +39,13 @@ RUN case "${TARGETARCH}" in \
       arm64) NAPI_TARGET=aarch64-unknown-linux-gnu ;; \
       *) echo "Unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
     esac && \
-    yarn workspace @affine/server-native build --target "${NAPI_TARGET}"
+    yarn workspace @affine/server-native build --target "${NAPI_TARGET}" && \
+    for platform_binary in \
+      server-native.x64.node \
+      server-native.arm64.node \
+      server-native.armv7.node; do \
+      cp ./packages/backend/native/server-native.node "./packages/backend/native/${platform_binary}"; \
+    done
 RUN yarn affine build --package @affine/web --deps && \
     yarn affine build --package @affine/admin --deps && \
     yarn workspace @affine/server build
