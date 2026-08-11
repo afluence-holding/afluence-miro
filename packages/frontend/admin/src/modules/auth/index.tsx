@@ -122,7 +122,7 @@ export function Auth() {
       <div className="hidden bg-muted lg:flex lg:justify-center">
         <img
           src={logo}
-          alt="Image"
+          alt="Afluence Miro"
           className="h-1/2 object-cover dark:brightness-[0.2] dark:grayscale relative top-1/4 "
         />
       </div>
