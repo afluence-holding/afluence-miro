@@ -23,3 +23,4 @@ FROM ghcr.io/toeverything/affine:canary
 COPY --from=frontend-build /app/packages/frontend/apps/web/dist /app/static
 COPY --from=frontend-build /app/packages/frontend/admin/dist /app/static/admin
 COPY --from=frontend-build /app/packages/frontend/core/public/ /app/static/mobile/
+COPY scripts/render-afluence-config.mjs /app/scripts/render-afluence-config.mjs
