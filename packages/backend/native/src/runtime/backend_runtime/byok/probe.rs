@@ -183,7 +183,9 @@ fn probe_request_for_operation(operation: &str) -> ExecutableRequest {
       model: String::new(),
       messages: vec![message],
       stream: false,
-      max_tokens: Some(8),
+      // GPT-5.6 rejects Responses API requests below 16 output tokens.
+      // Keep the probe inexpensive while satisfying the provider minimum.
+      max_tokens: Some(16),
       temperature: Some(0.0),
       tools: if operation == "tool_calling" {
         vec![CoreToolDefinition {
@@ -600,5 +602,14 @@ mod tests {
       requests.iter().filter(|request| request.contains("byok_probe")).count(),
       2
     );
+  }
+
+  #[test]
+  fn chat_probe_uses_the_openai_gpt_5_6_minimum_output_tokens() {
+    let ExecutableRequest::Chat(request) = probe_request_for_operation("chat") else {
+      panic!("chat probe must create a chat request");
+    };
+
+    assert_eq!(request.max_tokens, Some(16));
   }
 }
