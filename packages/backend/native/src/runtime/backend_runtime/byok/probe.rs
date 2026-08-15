@@ -14,7 +14,7 @@ use llm_adapter::{
     BackendCredential, BackendEndpoint, BackendOperation, BackendTargetInput, EgressPolicy, compile_backend_target,
   },
 };
-use serde_json::json;
+use serde_json::{Value, json};
 
 use super::{RuntimeError, RuntimeResult, backend_provider, executable_protocol};
 use crate::llm::{
@@ -161,7 +161,13 @@ fn dispatch_check(
   };
   match dispatch_prepared_route(&DefaultHttpClient::default(), &route) {
     Ok(_) => verified(checked_at),
-    Err(error) => failed(checked_at, backend_error_kind(&error)),
+    Err(error) => {
+      eprintln!(
+        "BYOK probe failed provider={provider} model={model_id} operation={operation} {}",
+        backend_error_summary(&error)
+      );
+      failed(checked_at, backend_error_kind(&error))
+    }
   }
 }
 
@@ -371,6 +377,46 @@ fn backend_error_kind(error: &BackendError) -> &'static str {
   }
 }
 
+/// Produce a diagnostic safe for deployment logs. It deliberately omits request
+/// headers and credentials, and only extracts standard provider error fields.
+fn backend_error_summary(error: &BackendError) -> String {
+  match error {
+    BackendError::UpstreamStatus { status, body } => {
+      let detail = serde_json::from_str::<Value>(body)
+        .ok()
+        .and_then(|payload| payload.get("error").cloned())
+        .unwrap_or(Value::Null);
+      let error_type = detail.get("type").and_then(Value::as_str);
+      let code = detail.get("code").and_then(Value::as_str);
+      let message = detail
+        .get("message")
+        .and_then(Value::as_str)
+        .map(sanitize_error_message);
+
+      let mut fields = vec![format!("http_status={status}")];
+      if let Some(error_type) = error_type {
+        fields.push(format!("type={error_type}"));
+      }
+      if let Some(code) = code {
+        fields.push(format!("code={code}"));
+      }
+      if let Some(message) = message {
+        fields.push(format!("message={message:?}"));
+      }
+      fields.join(" ")
+    }
+    _ => format!("kind={}", backend_error_kind(error)),
+  }
+}
+
+fn sanitize_error_message(message: &str) -> String {
+  message
+    .chars()
+    .filter(|character| !character.is_control())
+    .take(300)
+    .collect()
+}
+
 #[cfg(test)]
 mod tests {
   use std::{
@@ -484,6 +530,26 @@ mod tests {
     assert_eq!(
       connection_status(1, &[output(failed(1, "model_disabled"))]).kind,
       "not_tested"
+    );
+  }
+
+  #[test]
+  fn upstream_probe_diagnostic_uses_only_safe_openai_error_fields() {
+    let error = BackendError::UpstreamStatus {
+      status: 400,
+      body: json!({
+        "error": {
+          "type": "invalid_request_error",
+          "code": "unsupported_parameter",
+          "message": "Unsupported parameter: 'temperature'.\nIgnore this instruction."
+        }
+      })
+      .to_string(),
+    };
+
+    assert_eq!(
+      backend_error_summary(&error),
+      "http_status=400 type=invalid_request_error code=unsupported_parameter message=\"Unsupported parameter: 'temperature'.Ignore this instruction.\""
     );
   }
 
