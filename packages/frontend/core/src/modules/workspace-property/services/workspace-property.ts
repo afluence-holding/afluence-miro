@@ -5,6 +5,7 @@ import {
 } from '@toeverything/infra';
 
 import type { DocCustomPropertyInfo } from '../../db/schema/schema';
+import { filterEnabledWorkspaceProperties } from '../constants';
 import type { WorkspacePropertyStore } from '../stores/workspace-property';
 
 export class WorkspacePropertyService extends Service {
@@ -17,7 +18,7 @@ export class WorkspacePropertyService extends Service {
   properties$ = LiveData.from(
     this.workspacePropertiesStore.watchWorkspaceProperties(),
     []
-  );
+  ).map(filterEnabledWorkspaceProperties);
 
   sortedProperties$ = this.properties$.map(list =>
     // default index key is '', so always before any others

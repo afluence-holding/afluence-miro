@@ -18,12 +18,6 @@ export const BUILT_IN_CUSTOM_PROPERTY_TYPE: DocCustomPropertyInfo[] = [
     index: 'a0000002',
   },
   {
-    id: 'journal',
-    type: 'journal',
-    show: 'always-hide',
-    index: 'a0000003',
-  },
-  {
     id: 'template',
     type: 'template',
     index: 'a00000031',
@@ -58,3 +52,11 @@ export const BUILT_IN_CUSTOM_PROPERTY_TYPE: DocCustomPropertyInfo[] = [
     index: 'a0000008',
   },
 ];
+
+export const isEnabledWorkspacePropertyType = (type: string) =>
+  type !== 'journal';
+
+export const filterEnabledWorkspaceProperties = <T extends { type: string }>(
+  properties: T[]
+) =>
+  properties.filter(property => isEnabledWorkspacePropertyType(property.type));

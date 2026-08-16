@@ -349,7 +349,9 @@ export const WorkspacePropertyTypes = {
     name: 'Unknown',
     renameable: false,
   },
-} as {
+  // `journal` remains in the persisted property schema for backward compatibility,
+  // but it is intentionally absent from this runtime registry.
+} as unknown as {
   [type in WorkspacePropertyType]: {
     icon: React.FC<React.SVGProps<SVGSVGElement>>;
     value?: React.FC<PropertyValueProps>;
