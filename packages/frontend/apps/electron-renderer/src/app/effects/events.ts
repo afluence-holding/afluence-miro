@@ -1,7 +1,6 @@
 import { WorkspaceDialogService } from '@affine/core/modules/dialogs';
 import type { SettingTab } from '@affine/core/modules/dialogs/constant';
 import { DocsService } from '@affine/core/modules/doc';
-import { JournalService } from '@affine/core/modules/journal';
 import { LifecycleService } from '@affine/core/modules/lifecycle';
 import { WorkbenchService } from '@affine/core/modules/workbench';
 import { apis, events } from '@affine/electron-api';
@@ -55,21 +54,6 @@ export function setupEvents(frameworkProvider: FrameworkProvider) {
       .catch(err => {
         console.error(err);
       });
-  });
-
-  events?.applicationMenu.onOpenJournal(() => {
-    using currentWorkspace = getCurrentWorkspace(frameworkProvider);
-    if (!currentWorkspace) {
-      return;
-    }
-    const { workspace, dispose } = currentWorkspace;
-
-    const workbench = workspace.scope.get(WorkbenchService).workbench;
-    const journalService = workspace.scope.get(JournalService);
-    const docId = journalService.ensureJournalByDate(new Date()).id;
-    workbench.openDoc(docId);
-
-    dispose();
   });
 
   setupRecordingEvents(frameworkProvider);

@@ -21,7 +21,6 @@ import { DocService } from '@affine/core/modules/doc';
 import { EditorService } from '@affine/core/modules/editor';
 import { FeatureFlagService } from '@affine/core/modules/feature-flag';
 import { GlobalContextService } from '@affine/core/modules/global-context';
-import { JournalService } from '@affine/core/modules/journal';
 import { PeekViewService } from '@affine/core/modules/peek-view';
 import { RecentDocsService } from '@affine/core/modules/quicksearch';
 import {
@@ -38,8 +37,6 @@ import { ServerFeature } from '@affine/graphql';
 import track from '@affine/track';
 import { DisposableGroup } from '@blocksuite/affine/global/disposable';
 import { RefNodeSlotsProvider } from '@blocksuite/affine/inlines/reference';
-import { focusBlockEnd } from '@blocksuite/affine/shared/commands';
-import { getLastNoteBlock } from '@blocksuite/affine/shared/utils';
 import {
   AiIcon,
   ChartPanelIcon,
@@ -48,7 +45,6 @@ import {
   FrameIcon,
   PropertyIcon,
   TocIcon,
-  TodayIcon,
 } from '@blocksuite/icons/rc';
 import {
   FrameworkScope,
@@ -70,7 +66,6 @@ import { EditorAdapterPanel } from './tabs/adapter';
 import { EditorAnalyticsPanel } from './tabs/analytics';
 import { EditorChatPanel } from './tabs/chat';
 import { EditorFramePanel } from './tabs/frame';
-import { EditorJournalPanel } from './tabs/journal';
 import { EditorOutlinePanel } from './tabs/outline';
 
 const DetailPageImpl = memo(function DetailPageImpl() {
@@ -186,37 +181,11 @@ const DetailPageImpl = memo(function DetailPageImpl() {
 
   useRegisterBlocksuiteEditorCommands(editor, isActiveView);
 
-  const journalService = useService(JournalService);
-  const isJournal = !!useLiveData(journalService.journalDate$(doc.id));
-
   const onLoad = useCallback(
     (editorContainer: AffineEditorContainer) => {
       const std = editorContainer.std;
       const disposable = new DisposableGroup();
 
-      // Check if journal and handle accordingly to set focus on input block.
-      if (isJournal) {
-        const rafId = requestAnimationFrame(() => {
-          try {
-            if (!editorContainer.isConnected) return;
-            const page = editorContainer.page;
-            const note = getLastNoteBlock(page);
-            const std = editorContainer.std;
-            if (note) {
-              const lastBlock = note.lastChild();
-              if (lastBlock) {
-                const focusBlock = std.view.getBlock(lastBlock.id) ?? undefined;
-                std.command.exec(focusBlockEnd, { focusBlock, force: true });
-                return;
-              }
-            }
-            std.command.exec(focusBlockEnd, { force: true });
-          } catch (error) {
-            console.error('Failed to focus journal body', error);
-          }
-        });
-        disposable.add(() => cancelAnimationFrame(rafId));
-      }
       if (std) {
         const refNodeSlots = std.getOptional(RefNodeSlotsProvider);
         if (refNodeSlots) {
@@ -294,7 +263,7 @@ const DetailPageImpl = memo(function DetailPageImpl() {
         disposable.dispose();
       };
     },
-    [editor, workbench, peekView, isJournal]
+    [editor, workbench, peekView]
   );
 
   const [hasScrollTop, setHasScrollTop] = useState(false);
@@ -381,15 +350,6 @@ const DetailPageImpl = memo(function DetailPageImpl() {
         <Scrollable.Root className={styles.sidebarScrollArea}>
           <Scrollable.Viewport>
             <WorkspacePropertySidebar />
-          </Scrollable.Viewport>
-          <Scrollable.Scrollbar />
-        </Scrollable.Root>
-      </ViewSidebarTab>
-
-      <ViewSidebarTab tabId="journal" icon={<TodayIcon />}>
-        <Scrollable.Root className={styles.sidebarScrollArea}>
-          <Scrollable.Viewport>
-            <EditorJournalPanel />
           </Scrollable.Viewport>
           <Scrollable.Scrollbar />
         </Scrollable.Root>

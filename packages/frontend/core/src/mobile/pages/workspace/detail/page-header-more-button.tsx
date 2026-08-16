@@ -29,8 +29,6 @@ import { truncate } from 'lodash-es';
 import { useCallback, useEffect, useState } from 'react';
 
 import { MobileBackCoordinator } from '../../../modules/back-coordinator';
-import { JournalConflictsMenuItem } from './menu/journal-conflicts';
-import { JournalTodayActivityMenuItem } from './menu/journal-today-activity';
 import { EditorModeSwitch } from './menu/mode-switch';
 import * as styles from './page-header-more-button.css';
 
@@ -123,7 +121,6 @@ export const PageHeaderMenuButton = () => {
   const EditMenu = (
     <>
       <EditorModeSwitch />
-      <JournalTodayActivityMenuItem suffix={<MenuSeparator />} />
       <MobileMenuItem
         prefixIcon={primaryMode === 'page' ? <EdgelessIcon /> : <PageIcon />}
         data-testid="editor-option-menu-mode-switch"
@@ -166,7 +163,6 @@ export const PageHeaderMenuButton = () => {
           <span>{t['com.affine.header.option.view-toc']()}</span>
         </MobileMenuItem>
       </MobileMenu>
-      <JournalConflictsMenuItem />
       <Guard docId={docId} permission="Doc_Trash">
         {canMoveToTrash => (
           <MobileMenuItem

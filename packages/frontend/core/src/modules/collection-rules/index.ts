@@ -16,7 +16,6 @@ import { EdgelessThemeFilterProvider } from './impls/filters/edgeless-theme';
 import { EmptyJournalFilterProvider } from './impls/filters/empty-journal';
 import { FavoriteFilterProvider } from './impls/filters/favorite';
 import { IntegrationTypeFilterProvider } from './impls/filters/integration-type';
-import { JournalFilterProvider } from './impls/filters/journal';
 import { NumberPropertyFilterProvider } from './impls/filters/number';
 import { PageWidthFilterProvider } from './impls/filters/page-width';
 import { PropertyFilterProvider } from './impls/filters/property';
@@ -36,7 +35,6 @@ import { DatePropertyGroupByProvider } from './impls/group-by/date';
 import { DocPrimaryModeGroupByProvider } from './impls/group-by/doc-primary-mode';
 import { EdgelessThemeGroupByProvider } from './impls/group-by/edgeless-theme';
 import { IntegrationTypeGroupByProvider } from './impls/group-by/integration-type';
-import { JournalGroupByProvider } from './impls/group-by/journal';
 import { NumberPropertyGroupByProvider } from './impls/group-by/number';
 import { PageWidthGroupByProvider } from './impls/group-by/page-width';
 import { PropertyGroupByProvider } from './impls/group-by/property';
@@ -53,7 +51,6 @@ import { DatePropertyOrderByProvider } from './impls/order-by/date';
 import { DocPrimaryModeOrderByProvider } from './impls/order-by/doc-primary-mode';
 import { EdgelessThemeOrderByProvider } from './impls/order-by/edgeless-theme';
 import { IntegrationTypeOrderByProvider } from './impls/order-by/integration-type';
-import { JournalOrderByProvider } from './impls/order-by/journal';
 import { NumberPropertyOrderByProvider } from './impls/order-by/number';
 import { PageWidthOrderByProvider } from './impls/order-by/page-width';
 import { PropertyOrderByProvider } from './impls/order-by/property';
@@ -120,12 +117,6 @@ export function configureCollectionRulesModule(framework: Framework) {
       DocsService,
     ])
     .impl(FilterProvider('system:updatedAt'), UpdatedAtFilterProvider, [
-      DocsService,
-    ])
-    .impl(FilterProvider('property:journal'), JournalFilterProvider, [
-      DocsService,
-    ])
-    .impl(FilterProvider('system:journal'), JournalFilterProvider, [
       DocsService,
     ])
     .impl(FilterProvider('property:createdBy'), CreatedByFilterProvider, [
@@ -228,12 +219,6 @@ export function configureCollectionRulesModule(framework: Framework) {
     .impl(GroupByProvider('system:updatedAt'), UpdatedAtGroupByProvider, [
       DocsService,
     ])
-    .impl(GroupByProvider('property:journal'), JournalGroupByProvider, [
-      DocsService,
-    ])
-    .impl(GroupByProvider('system:journal'), JournalGroupByProvider, [
-      DocsService,
-    ])
     .impl(GroupByProvider('property:createdBy'), CreatedByGroupByProvider, [
       DocsService,
     ])
@@ -321,12 +306,6 @@ export function configureCollectionRulesModule(framework: Framework) {
     .impl(OrderByProvider('system:tags'), TagsOrderByProvider, [
       DocsService,
       TagService,
-    ])
-    .impl(OrderByProvider('property:journal'), JournalOrderByProvider, [
-      DocsService,
-    ])
-    .impl(OrderByProvider('system:journal'), JournalOrderByProvider, [
-      DocsService,
     ])
     .impl(OrderByProvider('property:createdBy'), CreatedByOrderByProvider, [
       DocsService,

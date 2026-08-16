@@ -26,10 +26,4 @@ export const applicationMenuEvents = {
       sub.unsubscribe();
     };
   },
-  onOpenJournal: (fn: () => void) => {
-    const sub = applicationMenuSubjects.openJournal$.subscribe(fn);
-    return () => {
-      sub.unsubscribe();
-    };
-  },
 } satisfies Record<string, MainEventRegister>;

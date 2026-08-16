@@ -17,7 +17,6 @@ import {
   TagIcon,
   TemplateIcon,
   TextIcon,
-  TodayIcon,
 } from '@blocksuite/icons/rc';
 
 import type { DocListPropertyProps, GroupHeaderProps } from '../explorer/types';
@@ -64,12 +63,6 @@ import {
   EdgelessThemeGroupHeader,
   EdgelessThemeValue,
 } from './edgeless-theme';
-import {
-  JournalDocListProperty,
-  JournalFilterValue,
-  JournalGroupHeader,
-  JournalValue,
-} from './journal';
 import {
   NumberDocListProperty,
   NumberFilterValue,
@@ -298,23 +291,6 @@ export const WorkspacePropertyTypes = {
     showInDocList: 'stack',
     docListProperty: DocPrimaryModeDocListProperty,
     groupHeader: DocPrimaryModeGroupHeader,
-  },
-  journal: {
-    icon: TodayIcon,
-    value: JournalValue,
-    name: 'com.affine.page-properties.property.journal',
-    description: 'com.affine.page-properties.property.journal.tooltips',
-    allowInGroupBy: true,
-    allowInOrderBy: true,
-    filterMethod: {
-      is: 'com.affine.editCollection.rules.include.is',
-      'is-not': 'com.affine.editCollection.rules.include.is-not',
-    },
-    filterValue: JournalFilterValue,
-    defaultFilter: { method: 'is', value: 'true' },
-    showInDocList: 'stack',
-    docListProperty: JournalDocListProperty,
-    groupHeader: JournalGroupHeader,
   },
   edgelessTheme: {
     icon: EdgelessIcon,

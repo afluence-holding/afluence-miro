@@ -5,7 +5,7 @@ import {
   DocRole,
   ErrorNames,
 } from '@affine/graphql';
-import { I18n, i18nTime } from '@affine/i18n';
+import { I18n } from '@affine/i18n';
 import track from '@affine/track';
 import type { DocMode } from '@blocksuite/affine/model';
 import { DocModeProvider } from '@blocksuite/affine/shared/services';
@@ -24,7 +24,6 @@ import {
 } from '@blocksuite/affine/widgets/linked-doc';
 import { unsafeHTML } from '@blocksuite/affine-shared/utils';
 import {
-  DateTimeIcon,
   NewXxxEdgelessIcon,
   NewXxxPageIcon,
   UserIcon,
@@ -45,7 +44,6 @@ import { AuthService, type WorkspaceServerService } from '../../cloud';
 import type { WorkspaceDialogService } from '../../dialogs';
 import type { DocsService } from '../../doc';
 import type { DocDisplayMetaService } from '../../doc-display-meta';
-import { type JournalService, suggestJournalDate } from '../../journal';
 import { NotificationService } from '../../notification';
 import type { GuardService, MemberSearchService } from '../../permissions';
 import type { DocGrantedUsersService } from '../../permissions/services/doc-granted-users';
@@ -59,12 +57,10 @@ function resolveSignal<T>(data: T | Signal<T>): T {
 const RESERVED_ITEM_KEYS = {
   createPage: 'create:page',
   createEdgeless: 'create:edgeless',
-  datePicker: 'date-picker',
 };
 
 export class AtMenuConfigService extends Service {
   constructor(
-    private readonly journalService: JournalService,
     private readonly docDisplayMetaService: DocDisplayMetaService,
     private readonly dialogService: WorkspaceDialogService,
     private readonly docsService: DocsService,
@@ -214,94 +210,6 @@ export class AtMenuConfigService extends Service {
     };
   }
 
-  private journalGroup(
-    query: string,
-    close: () => void,
-    inlineEditor: AffineInlineEditor
-  ): LinkedMenuGroup {
-    const suggestedDate = suggestJournalDate(query);
-
-    const items: LinkedMenuItem[] = [
-      {
-        icon: DateTimeIcon(),
-        key: RESERVED_ITEM_KEYS.datePicker,
-        name: I18n.t('com.affine.editor.at-menu.date-picker'),
-        action: () => {
-          close();
-
-          const getRect = () => {
-            if (!inlineEditor.rootElement) {
-              return { x: 0, y: 0, width: 0, height: 0 };
-            }
-            let rect = inlineEditor.getNativeRange()?.getBoundingClientRect();
-
-            if (!rect || rect.width === 0 || rect.height === 0) {
-              rect = inlineEditor.rootElement.getBoundingClientRect();
-            }
-
-            return rect;
-          };
-
-          const { x, y, width, height } = getRect();
-
-          const id = this.dialogService.open('date-selector', {
-            position: [x, y, width, height || 20],
-            onSelect: date => {
-              if (date) {
-                onSelectDate(date);
-                track.doc.editor.atMenu.linkDoc({
-                  journal: true,
-                  type: 'specific date',
-                });
-                this.dialogService.close(id);
-              }
-            },
-          });
-        },
-      },
-    ];
-
-    const onSelectDate = (date: string) => {
-      close();
-      const doc = this.journalService.ensureJournalByDate(date);
-      this.insertDoc(inlineEditor, doc.id);
-    };
-
-    if (suggestedDate) {
-      const { dateString, alias } = suggestedDate;
-      const dateDisplay = i18nTime(dateString, {
-        absolute: { accuracy: 'day' },
-      });
-
-      const icon = this.docDisplayMetaService.getJournalIcon(dateString, {
-        type: 'lit',
-      });
-
-      items.unshift({
-        icon: icon(),
-        key: RESERVED_ITEM_KEYS.datePicker + ':' + dateString,
-        name: alias
-          ? html`${alias},
-              <span style="color: ${cssVarV2('text/secondary')}"
-                >${dateDisplay}</span
-              >`
-          : dateDisplay,
-        action: () => {
-          track.doc.editor.atMenu.linkDoc({
-            journal: true,
-            type: alias,
-          });
-          onSelectDate(dateString);
-        },
-      });
-    }
-
-    return {
-      name: I18n.t('com.affine.editor.at-menu.journal'),
-      items,
-    };
-  }
-
   private linkToDocGroup(
     query: string,
     close: () => void,
@@ -318,16 +226,6 @@ export class AtMenuConfigService extends Service {
       action,
       abortSignal
     );
-    const filterItem = (item: LinkedMenuItem) => {
-      const isJournal = !!this.journalService.journalDate$(item.key).value;
-      return !isJournal;
-    };
-    const items = result.items;
-    if (Array.isArray(items)) {
-      result.items = items.filter(filterItem);
-    } else {
-      result.items = computed(() => items.value.filter(filterItem));
-    }
     return result;
   }
 
@@ -660,7 +558,6 @@ export class AtMenuConfigService extends Service {
       return [
         this.linkToDocGroup(query, close, inlineEditor, abortSignal),
         this.memberGroup(query, close, inlineEditor, abortSignal),
-        this.journalGroup(query, close, inlineEditor),
         this.newDocMenuGroup(query, close, editorHost, inlineEditor),
       ];
     };

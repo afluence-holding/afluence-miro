@@ -37,7 +37,6 @@ const destinationKind = (pathname: string): MobileDestinationKind => {
   if (pathname === '/all') return 'all-docs';
   if (pathname === '/collection') return 'all-collections';
   if (pathname === '/tag') return 'all-tags';
-  if (pathname === '/journals') return 'journal';
   if (pathname === '/search') return 'search';
   if (pathname.startsWith('/collection/')) return 'collection';
   if (pathname.startsWith('/tag/')) return 'tag';

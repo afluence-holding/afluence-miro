@@ -103,15 +103,6 @@ class TrayState implements Disposable {
       key: 'primary',
       getConfig: () => [
         {
-          label: 'Open Journal',
-          icon: icons.journal,
-          click: () => {
-            logger.info('User action: Open Journal');
-            activateMainWindow();
-            applicationMenuSubjects.openJournal$.next();
-          },
-        },
-        {
           label: 'New Page',
           icon: icons.page,
           click: () => {

@@ -1,5 +1,4 @@
 import type { ReactToLit } from '@affine/component';
-import { JournalService } from '@affine/core/modules/journal';
 import { EmbedSyncedDocConfigExtension } from '@blocksuite/affine/blocks/embed-doc';
 import { NoteConfigExtension } from '@blocksuite/affine/blocks/note';
 import { EDGELESS_BLOCK_CHILD_PADDING } from '@blocksuite/affine/blocks/root';
@@ -12,7 +11,6 @@ import { GfxControllerIdentifier } from '@blocksuite/affine/std/gfx';
 import type { FrameworkProvider } from '@toeverything/infra';
 import { html } from 'lit';
 
-import { BlocksuiteEditorJournalDocTitle } from '../../block-suite-editor/journal-doc-title';
 import { EdgelessEmbedSyncedDocHeader } from './edgeless-embed-synced-doc-header';
 import { EdgelessNoteHeader } from './edgeless-note-header';
 
@@ -24,17 +22,8 @@ export function patchForEdgelessNoteConfig(
   return NoteConfigExtension({
     edgelessNoteHeader: ({ note }) =>
       reactToLit(<EdgelessNoteHeader note={note} />),
-    pageBlockTitle: ({ note }) => {
-      const journalService = framework.get(JournalService);
-      const isJournal = !!journalService.journalDate$(note.store.id).value;
-      if (isJournal) {
-        return reactToLit(
-          <BlocksuiteEditorJournalDocTitle page={note.store} />
-        );
-      } else {
-        return html`<doc-title .doc=${note.store}></doc-title>`;
-      }
-    },
+    pageBlockTitle: ({ note }) =>
+      html`<doc-title .doc=${note.store}></doc-title>`,
     pageBlockViewportFitAnimation: insidePeekView
       ? undefined
       : ({ std, note }) => {

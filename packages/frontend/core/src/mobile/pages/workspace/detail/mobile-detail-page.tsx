@@ -15,11 +15,8 @@ import { DocDisplayMetaService } from '@affine/core/modules/doc-display-meta';
 import { EditorService } from '@affine/core/modules/editor';
 import { FeatureFlagService } from '@affine/core/modules/feature-flag';
 import { GlobalContextService } from '@affine/core/modules/global-context';
-import { JournalService } from '@affine/core/modules/journal';
-import { WorkbenchService } from '@affine/core/modules/workbench';
 import { ViewService } from '@affine/core/modules/workbench/services/view';
 import { WorkspaceService } from '@affine/core/modules/workspace';
-import { i18nTime } from '@affine/i18n';
 import { DisposableGroup } from '@blocksuite/affine/global/disposable';
 import { RefNodeSlotsProvider } from '@blocksuite/affine/inlines/reference';
 import {
@@ -34,15 +31,12 @@ import {
 } from '@toeverything/infra';
 import { cssVarV2 } from '@toeverything/theme/v2';
 import clsx from 'clsx';
-import dayjs from 'dayjs';
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
 import { useMobileShellTabs } from '../../../components';
 import { globalVars } from '../../../styles/variables.css';
-import { JournalConflictBlock } from './journal-conflict-block';
-import { JournalDatePicker } from './journal-date-picker';
 import * as styles from './mobile-detail-page.css';
 import {
   getImmersiveZoomToolbarBottom,
@@ -81,7 +75,6 @@ const DetailPageImpl = ({
     featureFlagService,
     aIButtonService,
   } = useServices({
-    WorkbenchService,
     ViewService,
     EditorService,
     DocService,
@@ -266,9 +259,7 @@ const getNotFound = (back: boolean) => (
     Page Not Found (TODO)
   </>
 );
-const skeleton = getSkeleton(false);
 const skeletonWithBack = getSkeleton(true);
-const notFound = getNotFound(false);
 const notFoundWithBack = getNotFound(true);
 
 const getShouldShowTitle = () =>
@@ -284,16 +275,10 @@ const getIsLandscape = () =>
   });
 
 const MobileDetailPageHeader = ({
-  date,
   title,
-  allJournalDates,
-  handleDateChange,
   trackScrollTitle,
 }: {
-  date?: string;
   title?: string;
-  allJournalDates: Set<string | null | undefined>;
-  handleDateChange: (date: string) => void;
   trackScrollTitle: boolean;
 }) => {
   const [showTitle, setShowTitle] = useState(getShouldShowTitle);
@@ -343,22 +328,9 @@ const MobileDetailPageHeader = ({
           <PageHeaderMenuButton />
         </>
       }
-      bottom={
-        date ? (
-          <JournalDatePicker
-            date={date}
-            onChange={handleDateChange}
-            withDotDates={allJournalDates}
-            className={styles.journalDatePicker}
-          />
-        ) : null
-      }
-      bottomSpacer={94}
     >
-      <span data-show={!!date || showTitle} className={styles.headerTitle}>
-        {date
-          ? i18nTime(dayjs(date), { absolute: { accuracy: 'month' } })
-          : title}
+      <span data-show={showTitle} className={styles.headerTitle}>
+        {title}
       </span>
     </PageHeader>
   );
@@ -366,16 +338,10 @@ const MobileDetailPageHeader = ({
 
 const MobileDetailPageContent = ({
   pageId,
-  date,
   title,
-  allJournalDates,
-  handleDateChange,
 }: {
   pageId: string;
-  date?: string;
   title?: string;
-  allJournalDates: Set<string | null | undefined>;
-  handleDateChange: (date: string) => void;
 }) => {
   const editor = useService(EditorService).editor;
   const mode = useLiveData(editor.mode$);
@@ -506,14 +472,10 @@ const MobileDetailPageContent = ({
     <>
       {(!immersive || chromeVisible) && (
         <MobileDetailPageHeader
-          date={date}
           title={title}
-          allJournalDates={allJournalDates}
-          handleDateChange={handleDateChange}
           trackScrollTitle={trackScrollTitle}
         />
       )}
-      <JournalConflictBlock date={date} />
       <DetailPageImpl
         immersive={immersive}
         chromeVisible={chromeVisible}
@@ -523,56 +485,21 @@ const MobileDetailPageContent = ({
   );
 };
 
-const MobileDetailPage = ({
-  pageId,
-  date,
-}: {
-  pageId: string;
-  date?: string;
-}) => {
+const MobileDetailPage = ({ pageId }: { pageId: string }) => {
   const docDisplayMetaService = useService(DocDisplayMetaService);
-  const journalService = useService(JournalService);
-  const workbench = useService(WorkbenchService).workbench;
   const title = useLiveData(docDisplayMetaService.title$(pageId));
 
   const canAccess = useGuard('Doc_Read', pageId);
 
-  const allJournalDates = useLiveData(journalService.allJournalDates$);
-
-  const handleDateChange = useCallback(
-    (date: string) => {
-      const docs = journalService.journalsByDate$(date).value;
-      if (docs.length > 0) {
-        workbench.openDoc(docs[0].id, {
-          at: 'active',
-          replaceHistory: true,
-        });
-      } else {
-        workbench.open(`/journals?date=${date}`, {
-          at: 'active',
-          replaceHistory: true,
-        });
-      }
-    },
-    [journalService, workbench]
-  );
-
   return (
     <div className={styles.root}>
       <DetailPageWrapper
-        skeleton={date ? skeleton : skeletonWithBack}
-        notFound={date ? notFound : notFoundWithBack}
+        skeleton={skeletonWithBack}
+        notFound={notFoundWithBack}
         pageId={pageId}
         canAccess={canAccess}
       >
-        <MobileDetailPageContent
-          key={pageId}
-          pageId={pageId}
-          date={date}
-          title={title}
-          allJournalDates={allJournalDates}
-          handleDateChange={handleDateChange}
-        />
+        <MobileDetailPageContent key={pageId} pageId={pageId} title={title} />
       </DetailPageWrapper>
     </div>
   );
@@ -580,14 +507,12 @@ const MobileDetailPage = ({
 
 export const Component = () => {
   useThemeColorV2('layer/background/primary');
-  const journalService = useService(JournalService);
   const params = useParams();
   const pageId = params.pageId;
-  const journalDate = useLiveData(journalService.journalDate$(pageId ?? ''));
 
   if (!pageId) {
     return null;
   }
 
-  return <MobileDetailPage pageId={pageId} date={journalDate} />;
+  return <MobileDetailPage pageId={pageId} />;
 };

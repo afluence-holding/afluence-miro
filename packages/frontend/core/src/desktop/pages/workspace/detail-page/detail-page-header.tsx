@@ -7,18 +7,14 @@ import {
 } from '@affine/component';
 import { FavoriteButton } from '@affine/core/blocksuite/block-suite-header/favorite';
 import { InfoButton } from '@affine/core/blocksuite/block-suite-header/info';
-import { JournalWeekDatePicker } from '@affine/core/blocksuite/block-suite-header/journal/date-picker';
-import { JournalTodayButton } from '@affine/core/blocksuite/block-suite-header/journal/today-button';
 import { PageHeaderMenuButton } from '@affine/core/blocksuite/block-suite-header/menu';
 import { DetailPageHeaderPresentButton } from '@affine/core/blocksuite/block-suite-header/present/detail-header-present-button';
 import { BlocksuiteHeaderTitle } from '@affine/core/blocksuite/block-suite-header/title';
 import { EditorModeSwitch } from '@affine/core/blocksuite/block-suite-mode-switch';
 import { useRegisterCopyLinkCommands } from '@affine/core/components/hooks/affine/use-register-copy-link-commands';
-import { HeaderDivider } from '@affine/core/components/pure/header';
 import { DocService } from '@affine/core/modules/doc';
 import { DocDisplayMetaService } from '@affine/core/modules/doc-display-meta';
 import { EditorService } from '@affine/core/modules/editor';
-import { JournalService } from '@affine/core/modules/journal';
 import { SharePageButton } from '@affine/core/modules/share-menu';
 import { TemplateDocService } from '@affine/core/modules/template-doc';
 import { ViewIcon, ViewTitle } from '@affine/core/modules/workbench';
@@ -81,47 +77,6 @@ interface PageHeaderProps {
   page: Store;
   workspace: Workspace;
 }
-export function JournalPageHeader({ page, workspace }: PageHeaderProps) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [containerWidth, setContainerWidth] = useState(0);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    return observeResize(container, entry => {
-      setContainerWidth(entry.contentRect.width);
-    });
-  }, []);
-
-  const { hideShare, hideToday } =
-    useDetailPageHeaderResponsive(containerWidth);
-
-  const docDisplayMetaService = useService(DocDisplayMetaService);
-  const title = useLiveData(docDisplayMetaService.title$(page.id));
-
-  return (
-    <Header className={styles.header} ref={containerRef}>
-      <ViewTitle title={title} />
-      <ViewIcon icon="journal" />
-      <EditorModeSwitch />
-      <div className={styles.journalWeekPicker}>
-        <JournalWeekDatePicker page={page} />
-      </div>
-      <TemplateMark className={styles.journalTemplateMark} />
-      {hideToday ? null : <JournalTodayButton />}
-      <HeaderDivider />
-      <PageHeaderMenuButton
-        isJournal
-        page={page}
-        containerWidth={containerWidth}
-      />
-      {page && !hideShare ? (
-        <SharePageButton workspace={workspace} page={page} />
-      ) : null}
-    </Header>
-  );
-}
-
 export function NormalPageHeader({ page, workspace }: PageHeaderProps) {
   const titleInputHandleRef = useRef<InlineEditHandle>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -193,10 +148,6 @@ export function DetailPageHeader(
   }
 ) {
   const { page, workspace, onDragging } = props;
-  const journalService = useService(JournalService);
-  const isJournal = !!useLiveData(journalService.journalDate$(page.id));
-  const isInTrash = page.meta?.trash;
-
   useRegisterCopyLinkCommands({
     workspaceMeta: workspace.meta,
     docId: page.id,
@@ -229,12 +180,7 @@ export function DetailPageHeader(
       };
     }, [page.id]);
 
-  const inner =
-    isJournal && !isInTrash ? (
-      <JournalPageHeader {...props} />
-    ) : (
-      <NormalPageHeader {...props} />
-    );
+  const inner = <NormalPageHeader {...props} />;
 
   useEffect(() => {
     onDragging?.(dragging);

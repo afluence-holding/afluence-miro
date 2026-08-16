@@ -1,4 +1,4 @@
-import type { RouteObject } from 'react-router-dom';
+import { redirect, type RouteObject } from 'react-router-dom';
 
 export const workbenchRoutes = [
   {
@@ -39,7 +39,7 @@ export const workbenchRoutes = [
   },
   {
     path: '/journals',
-    lazy: () => import('./pages/workspace/journals'),
+    loader: () => redirect('/all'),
   },
   {
     path: '/settings',
