@@ -5,7 +5,7 @@ import {
   ByokModelInput,
   ByokModelOutput,
   ByokProbeOperation,
-  type ByokProvider,
+  ByokProvider,
 } from '@affine/graphql';
 
 import type { ByokDefinition, ByokSettings } from './types';
@@ -21,6 +21,12 @@ export type UseCase =
   | 'transcript'
   | 'embedding'
   | 'rerank';
+
+const openAiDefaultModelIds = [
+  'gpt-5.6-luna',
+  'gpt-image-2',
+  'text-embedding-3-small',
+] as const;
 
 export const useCases: { id: UseCase; labelKey: string }[] = [
   { id: 'chat', labelKey: 'model.use.chat' },
@@ -172,6 +178,19 @@ export function catalogModels(settings: ByokSettings, provider: ByokProvider) {
 
 export function defaultModels(settings: ByokSettings, provider: ByokProvider) {
   const catalog = catalogModels(settings, provider);
+  if (provider === ByokProvider.openai) {
+    const prioritized = openAiDefaultModelIds.flatMap(modelId => {
+      const model = catalog.find(item => item.modelId === modelId);
+      return model ? [model] : [];
+    });
+    if (prioritized.length) {
+      return prioritized.map(model => ({
+        modelId: model.modelId,
+        enabled: true,
+        capabilities: model.capabilities,
+      }));
+    }
+  }
   const selected = catalog.filter(model => model.recommended);
   return (selected.length ? selected : catalog.slice(0, 1)).map(model => ({
     modelId: model.modelId,
