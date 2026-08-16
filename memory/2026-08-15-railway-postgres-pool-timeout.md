@@ -31,7 +31,9 @@ This is unrelated to the Journal removal, OIDC, or a missing `DATABASE_URL`; the
 - The config renderer test confirmed that Prisma receives `connection_limit=3`.
 - `cargo check --package affine_server_native`, `cargo fmt --check --package affine_server_native`, `oxfmt`, `oxlint`, and `git diff --check` passed.
 - Railway confirms `AFLUENCE_PRISMA_CONNECTION_LIMIT=3` and `AFLUENCE_NATIVE_DB_POOL_MAX_CONNECTIONS=2` are set without exposing database credentials.
+- Railway deployment `4c58bebc-f99f-41c6-a700-66ecc0b61f83` for commit `d374c61fe` completed successfully. Its logs show both `BackendRuntimeProvider` and `StorageRuntimeProvider` started with `db=true`.
+- `https://miro.byafluence.com/info` returned HTTP 200 from `AFFiNE 2026.8.16-canary.007` after the deployment.
 
 ## Status
 
-FIXED IN SOURCE — pending the Railway deployment and `/info` health check.
+FIXED AND VERIFIED IN PRODUCTION.
