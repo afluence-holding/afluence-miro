@@ -40,7 +40,11 @@ export const useSignOut = ({
       );
 
     try {
-      await authService.signOut();
+      const result = await authService.signOut();
+      if (result?.redirectUri) {
+        window.location.assign(result.redirectUri);
+        return;
+      }
       if (enableLocalWorkspace) {
         jumpToIndex();
       } else {

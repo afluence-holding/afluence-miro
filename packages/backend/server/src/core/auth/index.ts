@@ -9,6 +9,7 @@ import { MailModule } from '../mail';
 import { QuotaModule } from '../quota';
 import { UserModule } from '../user';
 import { AccessTokenService } from './access-token';
+import { AfluenceLifecycleController } from './afluence-lifecycle-controller';
 import { AuthSessionService } from './auth-session';
 import { AuthChallengeStore } from './challenge-store';
 import { AuthController } from './controller';
@@ -64,7 +65,7 @@ import { AuthSigningKeyResolver } from './signing-key-resolver';
     AuthSigningKeyRing,
     AuthWebsocketOptionsProvider,
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, AfluenceLifecycleController],
 })
 export class AuthModule {}
 

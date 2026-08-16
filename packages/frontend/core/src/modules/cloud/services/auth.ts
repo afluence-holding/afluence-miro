@@ -281,9 +281,10 @@ export class AuthService extends Service {
   }
 
   async signOut() {
-    await this.store.signOut();
+    const result = await this.store.signOut();
     this.store.setCachedAuthSession(null);
     this.session.revalidate();
+    return result;
   }
 
   async listDeviceSessions() {

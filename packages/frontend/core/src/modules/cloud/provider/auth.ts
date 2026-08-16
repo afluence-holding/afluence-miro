@@ -32,7 +32,7 @@ export interface AuthProvider {
 
   signInOpenAppSignInCode(code: string): Promise<void>;
 
-  signOut(): Promise<void>;
+  signOut(): Promise<{ redirectUri?: string } | void>;
 
   clearSession(): Promise<void>;
 }

@@ -95,10 +95,11 @@ export function configureDefaultAuthProvider(framework: Framework) {
       },
       async signOut() {
         const csrfToken = getCookieValue(CSRF_COOKIE_NAME);
-        await fetchService.fetch('/api/auth/sign-out', {
+        const response = await fetchService.fetch('/api/auth/sign-out', {
           method: 'POST',
           headers: csrfToken ? { 'x-affine-csrf-token': csrfToken } : undefined,
         });
+        return (await response.json()) as { redirectUri?: string };
       },
       async clearSession() {},
     };

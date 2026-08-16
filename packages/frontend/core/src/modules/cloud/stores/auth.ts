@@ -156,7 +156,7 @@ export class AuthStore extends Store {
 
   async signOut() {
     try {
-      await this.authProvider.signOut();
+      return await this.authProvider.signOut();
     } finally {
       await this.deauthenticateRealtime();
     }

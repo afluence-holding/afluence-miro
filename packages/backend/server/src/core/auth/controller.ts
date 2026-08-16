@@ -180,8 +180,9 @@ export class AuthController {
     @Session() session: Session | AuthSessionPrincipal | undefined,
     @Query('user_id') userId: string | undefined
   ) {
+    const redirectUri = this.afluenceOidcLogoutUrl();
     if (!session) {
-      res.status(HttpStatus.OK).send({});
+      res.status(HttpStatus.OK).send({ redirectUri });
       return;
     }
 
@@ -195,7 +196,7 @@ export class AuthController {
           session.user.id
         );
       }
-      res.status(HttpStatus.OK).send({});
+      res.status(HttpStatus.OK).send({ redirectUri });
       return;
     }
 
@@ -208,7 +209,28 @@ export class AuthController {
     await this.auth.signOut(session.sessionId, userId);
     await this.auth.refreshCookies(res, session.sessionId);
 
-    res.status(HttpStatus.OK).send({});
+    res.status(HttpStatus.OK).send({ redirectUri });
+  }
+
+  private afluenceOidcLogoutUrl() {
+    const endpoint = process.env.AFLUENCE_OIDC_END_SESSION_URL?.trim();
+    const postLogout = process.env.AFLUENCE_OIDC_POST_LOGOUT_URL?.trim();
+    if (!endpoint || !postLogout) return undefined;
+
+    try {
+      const logoutUrl = new URL(endpoint);
+      const returnUrl = new URL(postLogout);
+      if (logoutUrl.protocol !== 'https:' || returnUrl.protocol !== 'https:') {
+        return undefined;
+      }
+      logoutUrl.searchParams.set(
+        'post_logout_redirect_uri',
+        returnUrl.toString()
+      );
+      return logoutUrl.toString();
+    } catch {
+      return undefined;
+    }
   }
 
   @Public()
