@@ -180,7 +180,7 @@ export class AuthController {
     @Session() session: Session | AuthSessionPrincipal | undefined,
     @Query('user_id') userId: string | undefined
   ) {
-    const redirectUri = this.afluenceOidcLogoutUrl();
+    let redirectUri = this.afluenceOidcLogoutUrl();
     if (!session) {
       res.status(HttpStatus.OK).send({ redirectUri });
       return;
@@ -196,6 +196,9 @@ export class AuthController {
           session.user.id
         );
       }
+      if (await this.revokeAfluenceCentralSession(session.user.email)) {
+        redirectUri = this.afluencePostLogoutUrl();
+      }
       res.status(HttpStatus.OK).send({ redirectUri });
       return;
     }
@@ -206,6 +209,9 @@ export class AuthController {
       throw new ActionForbidden();
     }
 
+    if (await this.revokeAfluenceCentralSession(session.user.email)) {
+      redirectUri = this.afluencePostLogoutUrl();
+    }
     await this.auth.signOut(session.sessionId, userId);
     await this.auth.refreshCookies(res, session.sessionId);
 
@@ -230,6 +236,38 @@ export class AuthController {
       return logoutUrl.toString();
     } catch {
       return undefined;
+    }
+  }
+
+  private afluencePostLogoutUrl() {
+    const value = process.env.AFLUENCE_OIDC_POST_LOGOUT_URL?.trim();
+    if (!value) return undefined;
+    try {
+      const url = new URL(value);
+      return url.protocol === 'https:' ? url.toString() : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private async revokeAfluenceCentralSession(email: string) {
+    const endpoint = process.env.AFLUENCE_CENTRAL_LOGOUT_URL?.trim();
+    const secret = process.env.AFLUENCE_LIFECYCLE_SECRET?.trim();
+    if (!endpoint || !secret) return false;
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-afluence-lifecycle-secret': secret,
+        },
+        body: JSON.stringify({ email }),
+        signal: AbortSignal.timeout(5000),
+      });
+      return response.ok;
+    } catch {
+      return false;
     }
   }
 
