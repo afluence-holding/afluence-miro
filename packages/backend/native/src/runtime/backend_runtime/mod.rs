@@ -27,6 +27,16 @@ use sha2::{Digest, Sha256};
 use sqlx::{PgPool, Row, postgres::PgPoolOptions};
 use tokio::sync::Mutex;
 
+const DEFAULT_POSTGRES_POOL_MAX_CONNECTIONS: u32 = 5;
+
+fn postgres_pool_max_connections() -> u32 {
+  std::env::var("AFLUENCE_NATIVE_DB_POOL_MAX_CONNECTIONS")
+    .ok()
+    .and_then(|value| value.parse().ok())
+    .filter(|value: &u32| *value > 0)
+    .unwrap_or(DEFAULT_POSTGRES_POOL_MAX_CONNECTIONS)
+}
+
 use self::types::{BackendRuntimeHealth, EmbeddingHealth};
 use super::object_storage::ObjectStorageService;
 pub(crate) use super::types;
@@ -90,7 +100,7 @@ impl BackendRuntime {
     let config = self.config()?;
     let database_url = &config.database_url;
     let pool = PgPoolOptions::new()
-      .max_connections(5)
+      .max_connections(postgres_pool_max_connections())
       .acquire_timeout(Duration::from_secs(5))
       .connect(database_url)
       .await

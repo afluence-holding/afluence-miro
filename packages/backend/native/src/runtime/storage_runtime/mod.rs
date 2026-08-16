@@ -4,6 +4,16 @@ use napi::bindgen_prelude::Buffer;
 use sqlx::{PgPool, Row, postgres::PgPoolOptions};
 use tokio::sync::Mutex;
 
+const DEFAULT_POSTGRES_POOL_MAX_CONNECTIONS: u32 = 5;
+
+fn postgres_pool_max_connections() -> u32 {
+  std::env::var("AFLUENCE_NATIVE_DB_POOL_MAX_CONNECTIONS")
+    .ok()
+    .and_then(|value| value.parse().ok())
+    .filter(|value: &u32| *value > 0)
+    .unwrap_or(DEFAULT_POSTGRES_POOL_MAX_CONNECTIONS)
+}
+
 mod blob_cleanup;
 mod blob_completion;
 mod blob_reclaimer;
@@ -82,7 +92,7 @@ impl StorageRuntime {
 
     let database_url = self.config()?.database_url;
     let pool = PgPoolOptions::new()
-      .max_connections(5)
+      .max_connections(postgres_pool_max_connections())
       .acquire_timeout(std::time::Duration::from_secs(5))
       .connect(&database_url)
       .await

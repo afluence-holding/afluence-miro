@@ -4,7 +4,9 @@ dockerfilePath = "Dockerfile"
 
 [deploy]
 # AFFiNE's supported self-host migration performs both Prisma and data migrations.
-preDeployCommand = "node ./scripts/self-host-predeploy.js"
+preDeployCommand = "node ./scripts/render-afluence-config.mjs && node ./scripts/self-host-predeploy.js"
 startCommand = "/app/scripts/start-afluence.sh"
+healthcheckPath = "/info"
+healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
