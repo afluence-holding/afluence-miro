@@ -5,7 +5,7 @@ use std::{
 
 use gcp_auth::{CustomServiceAccount, TokenProvider};
 use llm_adapter::{
-  backend::{BackendError, DefaultHttpClient},
+  backend::BackendError,
   capability::{AttachmentKind, AttachmentSource, ModelInput},
   core::{CoreContent, ImageInput, ImageRequest},
   router::{ExecutablePreparedRoute, ExecutableProtocol, ExecutableRequest, ExecutableResponse},
@@ -23,6 +23,7 @@ use crate::{
   llm::{
     LlmImageRequestContract,
     byok::CredentialEnvelopeKey,
+    http_client::ToolSchemaHttpClient,
     route::{
       AuthorizedProviderProfile, AuthorizedTargetRef, CatalogSlot, CredentialRef, RouteOperation,
       with_request_requirements,
@@ -130,7 +131,7 @@ pub(super) fn execute(
 ) -> RuntimeResult<CopilotExecutionResult> {
   let execution = compile_execution(&config, slot, request, &profiles, &candidates, &managed_credentials)?;
   let mut runtime_events = Vec::new();
-  let response = dispatch_compiled_plan(&DefaultHttpClient::default(), &execution.plan, |event| {
+  let response = dispatch_compiled_plan(&ToolSchemaHttpClient::default(), &execution.plan, |event| {
     runtime_events.push(event)
   })
   .map_err(|error| RuntimeError::invalid_state(error.to_string()))?;

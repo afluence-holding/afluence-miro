@@ -3,6 +3,7 @@ pub(crate) mod byok;
 mod contract_schema;
 mod core;
 mod ffi;
+pub(crate) mod http_client;
 mod prompt_catalog;
 pub(crate) mod route;
 

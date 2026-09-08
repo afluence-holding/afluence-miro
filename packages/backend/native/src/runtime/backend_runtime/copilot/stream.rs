@@ -11,7 +11,7 @@ use std::{
 
 use base64::{Engine, engine::general_purpose::STANDARD};
 use llm_adapter::{
-  backend::{BackendError, DefaultHttpClient},
+  backend::BackendError,
   core::{CoreContent, CoreMessage, CoreRole},
   router::ExecutableRequest,
 };
@@ -32,6 +32,7 @@ use super::{BackendRuntime, COPILOT_REQUEST_TIMEOUT, RuntimeError, dispatch, to_
 use crate::{
   llm::{
     CopilotExecuteInput,
+    http_client::ToolSchemaHttpClient,
     route::{AuthorizedProviderProfile, AuthorizedTargetRef, CatalogSlot},
   },
   runtime::BackendRuntimeConfig,
@@ -161,7 +162,7 @@ fn run_stream(
       selected_route_supports_vision.set(false);
       let mut route_events = Vec::new();
       let result = dispatch_compiled_round(
-        &DefaultHttpClient::default(),
+        &ToolSchemaHttpClient::default(),
         &mut execution.plan,
         &messages,
         || aborted.load(Ordering::Relaxed) || Instant::now() >= deadline,

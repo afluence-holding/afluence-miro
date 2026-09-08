@@ -311,7 +311,7 @@ export class CanvasOperationCard extends SignalWatcher(
   WithDisposable(ShadowlessElement)
 ) {
   static override styles = css`
-    .canvas-operation-card {
+    canvas-operation-card .canvas-operation-card {
       margin: 8px 0;
       padding: 12px;
       border: 0.5px solid var(--affine-border-color);
@@ -319,22 +319,22 @@ export class CanvasOperationCard extends SignalWatcher(
       color: var(--affine-text-primary-color);
     }
 
-    .title {
+    canvas-operation-card .title {
       font-size: 14px;
       font-weight: 500;
       line-height: 22px;
     }
-    .detail,
-    .error {
+    canvas-operation-card .detail,
+    canvas-operation-card .error {
       margin-top: 4px;
       font-size: 12px;
       line-height: 18px;
       color: var(--affine-text-secondary-color);
     }
-    .error {
+    canvas-operation-card .error {
       color: var(--affine-error-color);
     }
-    img {
+    canvas-operation-card img {
       display: block;
       width: 100%;
       max-height: 240px;
@@ -343,14 +343,14 @@ export class CanvasOperationCard extends SignalWatcher(
       object-fit: contain;
       background: var(--affine-hover-color);
     }
-    .actions {
+    canvas-operation-card .actions {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       margin-top: 10px;
     }
-    button,
-    a {
+    canvas-operation-card button,
+    canvas-operation-card a {
       min-height: 28px;
       padding: 4px 8px;
       border: 0.5px solid var(--affine-border-color);
@@ -363,16 +363,16 @@ export class CanvasOperationCard extends SignalWatcher(
       text-decoration: none;
       cursor: pointer;
     }
-    button:hover:not(:disabled),
-    a:hover {
+    canvas-operation-card button:hover:not(:disabled),
+    canvas-operation-card a:hover {
       background: var(--affine-hover-color);
     }
-    button:focus-visible,
-    a:focus-visible {
+    canvas-operation-card button:focus-visible,
+    canvas-operation-card a:focus-visible {
       outline: 2px solid var(--affine-primary-color);
       outline-offset: 2px;
     }
-    button:disabled {
+    canvas-operation-card button:disabled {
       opacity: 0.55;
       cursor: not-allowed;
     }

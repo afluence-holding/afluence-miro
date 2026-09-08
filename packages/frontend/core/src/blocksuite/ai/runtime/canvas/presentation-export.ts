@@ -1,10 +1,31 @@
 /** A presentation export contains pixels, and is never advertised as editable. */
 export async function canvasToPdf(canvas: HTMLCanvasElement, title = 'Canvas') {
-  const { PDFDocument } = await import('pdf-lib');
-  const png = await new Promise<Blob | null>(resolve =>
-    canvas.toBlob(resolve, 'image/png')
+  const width = canvas.width;
+  const height = canvas.height;
+  if (!width || !height)
+    throw new Error(
+      'The canvas renderer did not produce a presentation image.'
+    );
+
+  // Capture the requested frame before the first await. This keeps the export
+  // independent from later changes to the caller-owned canvas.
+  const snapshot = document.createElement('canvas');
+  snapshot.width = width;
+  snapshot.height = height;
+  const context = snapshot.getContext('2d');
+  if (!context)
+    throw new Error(
+      'The canvas renderer did not produce a presentation image.'
+    );
+  context.drawImage(canvas, 0, 0);
+  const pngPromise = new Promise<Blob | null>(resolve =>
+    snapshot.toBlob(resolve, 'image/png')
   );
-  if (!png || !canvas.width || !canvas.height)
+  const [{ PDFDocument }, png] = await Promise.all([
+    import('pdf-lib'),
+    pngPromise,
+  ]);
+  if (!png)
     throw new Error(
       'The canvas renderer did not produce a presentation image.'
     );
@@ -13,8 +34,8 @@ export async function canvasToPdf(canvas: HTMLCanvasElement, title = 'Canvas') {
   pdf.setProducer('Edgeless Canvas');
   const image = await pdf.embedPng(await png.arrayBuffer());
   // PDF page coordinates are points. Bound unusually large boards uniformly.
-  const scale = Math.min(0.75, 14400 / canvas.width, 14400 / canvas.height);
-  const page = pdf.addPage([canvas.width * scale, canvas.height * scale]);
+  const scale = Math.min(0.75, 14400 / width, 14400 / height);
+  const page = pdf.addPage([width * scale, height * scale]);
   page.drawImage(image, {
     x: 0,
     y: 0,

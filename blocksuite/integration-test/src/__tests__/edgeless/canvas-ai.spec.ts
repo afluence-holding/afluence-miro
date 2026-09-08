@@ -5,6 +5,14 @@ import type {
   CanvasReceipt,
   CanvasToolResponse,
 } from '@affine/realtime/canvas';
+import { Text } from '@blocksuite/affine/store';
+import {
+  decodePDFRawStream,
+  PDFDocument,
+  PDFName,
+  PDFNumber,
+  PDFRawStream,
+} from 'pdf-lib';
 import { afterEach, describe, expect, test } from 'vitest';
 import { page } from 'vitest/browser';
 
@@ -14,6 +22,7 @@ import {
   nativePrimitiveCreateProps,
   snapshotNativePrimitive,
 } from '../../../../../packages/frontend/core/src/blocksuite/ai/runtime/canvas/native-primitives.js';
+import { canvasToPdf } from '../../../../../packages/frontend/core/src/blocksuite/ai/runtime/canvas/presentation-export.js';
 import { CanvasRuntime } from '../../../../../packages/frontend/core/src/blocksuite/ai/runtime/canvas/runtime.js';
 import { wait } from '../utils/common.js';
 import { getDocRootBlock, getSurface } from '../utils/edgeless.js';
@@ -82,6 +91,57 @@ function artifactHandle(handle: string, fileName?: string): CanvasJsonValue {
     handle,
     ...(fileName ? { fileName } : {}),
   };
+}
+
+async function canvasPixels(url: string) {
+  const image = await createImageBitmap(await (await fetch(url)).blob());
+  const canvas = document.createElement('canvas');
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Canvas 2D is unavailable.');
+  context.drawImage(image, 0, 0);
+  return {
+    width: image.width,
+    height: image.height,
+    data: context.getImageData(0, 0, image.width, image.height).data,
+  };
+}
+
+function pixelAt(
+  image: Awaited<ReturnType<typeof canvasPixels>>,
+  x: number,
+  y: number
+) {
+  const offset = (y * image.width + x) * 4;
+  return Array.from(image.data.slice(offset, offset + 4));
+}
+
+async function pdfImagePixels(blob: Blob) {
+  const pdf = await PDFDocument.load(await blob.arrayBuffer());
+  for (const [, object] of pdf.context.enumerateIndirectObjects()) {
+    if (!(object instanceof PDFRawStream)) continue;
+    if (object.dict.get(PDFName.of('Subtype'))?.toString() !== '/Image')
+      continue;
+    if (object.dict.get(PDFName.of('ColorSpace'))?.toString() !== '/DeviceRGB')
+      continue;
+    return {
+      width: object.dict.lookup(PDFName.of('Width'), PDFNumber).asNumber(),
+      height: object.dict.lookup(PDFName.of('Height'), PDFNumber).asNumber(),
+      data: decodePDFRawStream(object).decode(),
+      page: pdf.getPages()[0]?.getSize(),
+    };
+  }
+  throw new Error('The PDF does not contain an RGB presentation image.');
+}
+
+function pdfPixelAt(
+  image: Awaited<ReturnType<typeof pdfImagePixels>>,
+  x: number,
+  y: number
+) {
+  const offset = (y * image.width + x) * 3;
+  return Array.from(image.data.slice(offset, offset + 3));
 }
 
 type NativePoint = readonly [number, number];
@@ -659,6 +719,107 @@ describe('Edgeless AI canvas en Chromium', () => {
     } | null;
     expect(oldFrame?.props.childElementIds?.[shapeId]).toBeUndefined();
     expect(newFrame?.props.childElementIds?.[shapeId]).toBe(true);
+    runtime.dispose();
+  });
+
+  test('mantiene los píxeles de una nota estables entre PNG y PDF', async () => {
+    cleanup = await setupEditor('edgeless');
+    const host = window.editor.host!;
+    const root = host.store.root;
+    if (!root) throw new Error('Document root is unavailable.');
+    const noteId = host.store.addBlock(
+      'affine:note',
+      { xywh: '[0,0,498,244]' },
+      root
+    );
+    host.store.addBlock(
+      'affine:paragraph',
+      { text: new Text('Nota manual de control: conservar este texto.') },
+      noteId
+    );
+    await wait();
+    await wait();
+    const runtime = new CanvasRuntime({
+      host,
+      workspaceId: 'browser-workspace',
+      docId: 'doc:home',
+    });
+    const noteScope = { ids: [noteId] };
+    const png = assertOk<{
+      artifact: { url: string; mimeType: string };
+    }>(
+      await runtime.execute('canvas_export', {
+        destination,
+        scope: noteScope,
+        format: 'png',
+      })
+    );
+    const first = await canvasPixels(png.artifact.url);
+    const repeated = assertOk<{
+      artifact: { url: string; mimeType: string };
+    }>(
+      await runtime.execute('canvas_render', {
+        destination,
+        scope: noteScope,
+      })
+    );
+    const second = await canvasPixels(repeated.artifact.url);
+    expect([second.width, second.height]).toEqual([first.width, first.height]);
+    const samples = [
+      [100, 100],
+      [350, 100],
+      [100, 250],
+      [350, 250],
+    ] as const;
+    expect(samples.map(([x, y]) => pixelAt(first, x, y))).toEqual(
+      samples.map(([x, y]) => pixelAt(second, x, y))
+    );
+    const pdf = assertOk<{ artifact: { url: string; mimeType: string } }>(
+      await runtime.execute('canvas_export', {
+        destination,
+        scope: noteScope,
+        format: 'pdf',
+      })
+    );
+    expect(pdf.artifact.mimeType).toBe('application/pdf');
+    const pdfBlob = await (await fetch(pdf.artifact.url)).blob();
+    expect(pdfBlob.size).toBeGreaterThan(1000);
+    const embedded = await pdfImagePixels(pdfBlob);
+    expect([embedded.width, embedded.height]).toEqual([
+      first.width,
+      first.height,
+    ]);
+    expect(embedded.page).toEqual({
+      width: first.width * 0.75,
+      height: first.height * 0.75,
+    });
+    expect(samples.map(([x, y]) => pdfPixelAt(embedded, x, y))).toEqual(
+      samples.map(([x, y]) => pixelAt(first, x, y).slice(0, 3))
+    );
+
+    // Changes to a caller-owned canvas while the PDF module loads must not
+    // replace the frame or dimensions already requested.
+    const borrowed = document.createElement('canvas');
+    borrowed.width = 12;
+    borrowed.height = 8;
+    const borrowedContext = borrowed.getContext('2d');
+    if (!borrowedContext) throw new Error('Canvas 2D is unavailable.');
+    borrowedContext.fillStyle = '#ff0000';
+    borrowedContext.fillRect(0, 0, 6, 8);
+    borrowedContext.fillStyle = '#0000ff';
+    borrowedContext.fillRect(6, 0, 6, 8);
+    const pendingPdf = canvasToPdf(borrowed, 'Borrowed canvas snapshot');
+    borrowed.width = 40;
+    borrowed.height = 20;
+    const repaintedContext = borrowed.getContext('2d');
+    if (!repaintedContext) throw new Error('Canvas 2D is unavailable.');
+    repaintedContext.fillStyle = '#808080';
+    repaintedContext.fillRect(0, 0, borrowed.width, borrowed.height);
+    const captured = await pdfImagePixels(await pendingPdf);
+    expect([captured.width, captured.height]).toEqual([12, 8]);
+    expect(captured.page).toEqual({ width: 9, height: 6 });
+    expect(pdfPixelAt(captured, 2, 4)).toEqual([255, 0, 0]);
+    expect(pdfPixelAt(captured, 9, 4)).toEqual([0, 0, 255]);
     runtime.dispose();
   });
 
