@@ -4,9 +4,10 @@ import {
   surfaceMiddlewareExtension,
 } from '@blocksuite/affine-block-surface';
 import type { ConnectorElementModel } from '@blocksuite/affine-model';
-import type { GfxModel } from '@blocksuite/std/gfx';
+import { GfxBlockElementModel, type GfxModel } from '@blocksuite/std/gfx';
 
 import { ConnectorPathGenerator } from './connector-manager';
+import { routeConnectorAroundObstacles } from './obstacle-route';
 
 export const connectorWatcher: SurfaceMiddleware = (
   surface: SurfaceBlockModel
@@ -22,7 +23,21 @@ export const connectorWatcher: SurfaceMiddleware = (
       ((connector.target?.id && hasElementById(connector.target.id)) ||
         (!connector.target?.id && connector.target?.position))
     ) {
-      ConnectorPathGenerator.updatePath(connector, null, elementGetter);
+      const models = [
+        ...surface.elementModels,
+        ...surface.store
+          .getAllModels()
+          .filter(
+            (model): model is GfxBlockElementModel =>
+              model instanceof GfxBlockElementModel
+          ),
+      ];
+      const route = routeConnectorAroundObstacles(
+        connector,
+        elementGetter,
+        models
+      );
+      ConnectorPathGenerator.updatePath(connector, route, elementGetter);
     }
   };
   const pendingList = new Set<ConnectorElementModel>();
@@ -39,9 +54,14 @@ export const connectorWatcher: SurfaceMiddleware = (
       });
     }
   };
+  const rerouteAvoidingObstacles = () =>
+    surface.getElementsByType('connector').forEach(connector => {
+      if (connector.routing === 'avoid-obstacles') addToUpdateList(connector);
+    });
 
   const disposables = [
     surface.elementAdded.subscribe(({ id }) => {
+      rerouteAvoidingObstacles();
       const element = elementGetter(id);
 
       if (!element) return;
@@ -54,6 +74,12 @@ export const connectorWatcher: SurfaceMiddleware = (
     }),
     surface.elementUpdated.subscribe(({ id, props }) => {
       const element = elementGetter(id);
+      if (!element) return;
+      if (
+        (!('type' in element) || element.type !== 'connector') &&
+        (props['xywh'] || props['rotate'])
+      )
+        rerouteAvoidingObstacles();
 
       if (props['xywh'] || props['rotate']) {
         surface.getConnectors(id).forEach(addToUpdateList);
@@ -62,7 +88,10 @@ export const connectorWatcher: SurfaceMiddleware = (
       if (
         'type' in element &&
         element.type === 'connector' &&
-        (props['mode'] !== undefined || props['target'] || props['source'])
+        (props['mode'] !== undefined ||
+          props['routing'] !== undefined ||
+          props['target'] ||
+          props['source'])
       ) {
         addToUpdateList(element as ConnectorElementModel);
       }
@@ -73,8 +102,11 @@ export const connectorWatcher: SurfaceMiddleware = (
         (payload.type === 'update' && payload.props.key === 'xywh')
       ) {
         surface.getConnectors(payload.id).forEach(addToUpdateList);
+        rerouteAvoidingObstacles();
       }
+      if (payload.type === 'delete') rerouteAvoidingObstacles();
     }),
+    surface.elementRemoved.subscribe(rerouteAvoidingObstacles),
   ];
 
   surface

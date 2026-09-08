@@ -1,0 +1,49 @@
+{
+  "verifiedAtUtc": "2026-09-08T08:05:46.169929+00:00",
+  "branch": "codex/edgeless-ai-designer",
+  "baseCommit": "ecdd4045034e8ba4027b7095cb4f44113cecfbca",
+  "worktreeCodeSha256": "4567f15c82a5a86a693fe7cb07ed00299baa40c6de79b5d35b1488f1b2a4baf4",
+  "codeFilesHashed": 103,
+  "tests": {
+    "sharedAndFrontend": {
+      "files": 13,
+      "passed": 75
+    },
+    "lastCanvasSubsetAfterProjectionFix": {
+      "files": 8,
+      "passed": 47,
+      "subsetOfSharedAndFrontend": true
+    },
+    "backend": {
+      "files": 4,
+      "passed": 37
+    },
+    "chromium": {
+      "files": 5,
+      "passed": 10
+    },
+    "rustCanvas": {
+      "passed": 4
+    },
+    "prerequisiteFixtures": {
+      "files": 2,
+      "passed": 16
+    }
+  },
+  "typecheck": {
+    "backend": "passed",
+    "realtime": "passed",
+    "frontendCoreWithProjectReferences": "passed"
+  },
+  "lint": {
+    "changedTypeScriptAndJavaScript": "passed",
+    "typeAware": false,
+    "reason": "Temporary local config; broken Homebrew Node. Repository config unchanged."
+  },
+  "immutableInstall": "passed_with_existing_peer_warnings",
+  "diffWhitespace": "passed",
+  "productionImageBuilt": false,
+  "deployed": false,
+  "liveModelConversationTested": false,
+  "remotePersistenceFaultTested": false
+}

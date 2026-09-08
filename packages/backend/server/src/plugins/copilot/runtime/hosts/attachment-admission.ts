@@ -51,6 +51,54 @@ type ParsedPromptAttachment = {
 };
 
 const DEFAULT_MAX_BYTES = 64 * OneMB;
+const CANVAS_INTERCHANGE_MEDIA_TYPES = {
+  native: 'application/vnd.affine.canvas+zip',
+  excalidraw: 'application/vnd.excalidraw+json',
+  freemind: 'application/vnd.freemind',
+  opml: 'text/x-opml',
+  mermaid: 'text/vnd.mermaid',
+  recipe: 'application/json',
+} as const;
+
+function hasZipSignature(buffer: Buffer) {
+  return (
+    buffer.length >= 4 &&
+    buffer[0] === 0x50 &&
+    buffer[1] === 0x4b &&
+    ((buffer[2] === 0x03 && buffer[3] === 0x04) ||
+      (buffer[2] === 0x05 && buffer[3] === 0x06) ||
+      (buffer[2] === 0x07 && buffer[3] === 0x08))
+  );
+}
+
+/**
+ * Canvas interchange is identified from the trusted upload filename and, for
+ * native bundles, the PKZip signature. Browser supplied MIME types are not an
+ * authority for a binary import format.
+ */
+export function canvasInterchangeMimeType(
+  fileName: string | undefined,
+  body: Buffer
+) {
+  const name = fileName?.trim().toLowerCase();
+  if (!name) return;
+  if (name.endsWith('.bs.zip')) {
+    if (!hasZipSignature(body)) {
+      throw new Error(
+        'A .bs.zip canvas attachment must have a PKZip signature'
+      );
+    }
+    return CANVAS_INTERCHANGE_MEDIA_TYPES.native;
+  }
+  if (name.endsWith('.excalidraw'))
+    return CANVAS_INTERCHANGE_MEDIA_TYPES.excalidraw;
+  if (name.endsWith('.mm')) return CANVAS_INTERCHANGE_MEDIA_TYPES.freemind;
+  if (name.endsWith('.opml')) return CANVAS_INTERCHANGE_MEDIA_TYPES.opml;
+  if (name.endsWith('.mmd') || name.endsWith('.mermaid'))
+    return CANVAS_INTERCHANGE_MEDIA_TYPES.mermaid;
+  if (name.endsWith('.json')) return CANVAS_INTERCHANGE_MEDIA_TYPES.recipe;
+  return;
+}
 
 function normalizeMimeType(mediaType?: string) {
   return mediaType?.split(';', 1)[0]?.trim() || 'application/octet-stream';
@@ -154,6 +202,20 @@ function admittedBytesSource(input: {
   };
 }
 
+function validateAdmittedSource(
+  source: AdmittedAttachmentSource,
+  maxBytes: number
+): AdmittedAttachmentSource {
+  if (source.size > maxBytes) {
+    throw new Error(`Attachment exceeds the ${maxBytes} byte limit`);
+  }
+  const canvasMimeType = canvasInterchangeMimeType(
+    source.fileName,
+    Buffer.from(source.data, 'base64')
+  );
+  return canvasMimeType ? { ...source, mimeType: canvasMimeType } : source;
+}
+
 @Injectable()
 export class AttachmentAdmissionHost {
   constructor(private readonly materializer: AttachmentMaterializer) {}
@@ -178,13 +240,16 @@ export class AttachmentAdmissionHost {
       if (!data || !mimeType) {
         throw new Error('Attachment data and MIME type are required');
       }
-      return admittedBytesSource({
-        data,
-        encoding: parsed.encoding,
-        mimeType,
-        fileName: parsed.fileName,
-        providerHint: parsed.providerHint,
-      });
+      return validateAdmittedSource(
+        admittedBytesSource({
+          data,
+          encoding: parsed.encoding,
+          mimeType,
+          fileName: parsed.fileName,
+          providerHint: parsed.providerHint,
+        }),
+        context.maxBytes ?? DEFAULT_MAX_BYTES
+      );
     }
 
     if (!parsed.url) {
@@ -193,14 +258,17 @@ export class AttachmentAdmissionHost {
 
     const dataUrl = parseDataUrl(parsed.url);
     if (dataUrl) {
-      return admittedBytesSource({
-        data: dataUrl.data,
-        mimeType: parsed.mimeType
-          ? normalizeMimeType(parsed.mimeType)
-          : dataUrl.mimeType,
-        fileName: parsed.fileName,
-        providerHint: parsed.providerHint,
-      });
+      return validateAdmittedSource(
+        admittedBytesSource({
+          data: dataUrl.data,
+          mimeType: parsed.mimeType
+            ? normalizeMimeType(parsed.mimeType)
+            : dataUrl.mimeType,
+          fileName: parsed.fileName,
+          providerHint: parsed.providerHint,
+        }),
+        context.maxBytes ?? DEFAULT_MAX_BYTES
+      );
     }
 
     const downloaded = await this.materializer.fetchRemoteAttachment(
@@ -216,14 +284,17 @@ export class AttachmentAdmissionHost {
       parsed.mimeType
     );
 
-    return admittedBytesSource({
-      data: downloaded.data,
-      mimeType: declaredMimeType
-        ? normalizeMimeType(declaredMimeType)
-        : downloaded.mimeType,
-      fileName: parsed.fileName,
-      providerHint: parsed.providerHint,
-    });
+    return validateAdmittedSource(
+      admittedBytesSource({
+        data: downloaded.data,
+        mimeType: declaredMimeType
+          ? normalizeMimeType(declaredMimeType)
+          : downloaded.mimeType,
+        fileName: parsed.fileName,
+        providerHint: parsed.providerHint,
+      }),
+      context.maxBytes ?? DEFAULT_MAX_BYTES
+    );
   }
 
   async admitPromptAttachments(

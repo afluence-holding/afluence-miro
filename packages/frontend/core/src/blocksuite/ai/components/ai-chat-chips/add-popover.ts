@@ -198,7 +198,7 @@ export class ChatPanelAddPopover extends SignalWatcher(
       },
       {
         key: 'files',
-        name: 'Upload files (pdf, txt, csv)',
+        name: 'Upload files (PDF, text, canvas, diagrams)',
         testId: 'ai-chat-with-files',
         icon: UploadIcon(),
         action: this._addFileChip,

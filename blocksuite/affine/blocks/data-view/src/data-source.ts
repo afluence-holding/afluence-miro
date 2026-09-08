@@ -7,11 +7,22 @@ import {
   insertPositionToIndex,
   type InsertToPosition,
 } from '@blocksuite/affine-shared/utils';
-import { DataSourceBase, type PropertyMetaConfig } from '@blocksuite/data-view';
+import {
+  type DatabaseFlags,
+  DataSourceBase,
+  type DataViewDataType,
+  type PropertyMetaConfig,
+  type TypeInstance,
+  type ViewManager,
+  ViewManagerBase,
+  type ViewMeta,
+} from '@blocksuite/data-view';
 import { propertyPresets } from '@blocksuite/data-view/property-presets';
+import { viewConverts, viewPresets } from '@blocksuite/data-view/view-presets';
 import { BlockSuiteError } from '@blocksuite/global/exceptions';
 import type { EditorHost } from '@blocksuite/std';
 import type { Block, Store } from '@blocksuite/store';
+import { computed, type ReadonlySignal } from '@preact/signals-core';
 import { Subject } from 'rxjs';
 
 import type { BlockMeta } from './block-meta/base.js';
@@ -23,7 +34,6 @@ export type BlockQueryDataSourceConfig = {
   type: keyof typeof blockMetaMap;
 };
 
-// @ts-expect-error FIXME: ts error
 export class BlockQueryDataSource extends DataSourceBase {
   private readonly columnMetaMap = new Map<
     string,
@@ -62,6 +72,53 @@ export class BlockQueryDataSource extends DataSourceBase {
   get workspace() {
     return this.host.store.workspace;
   }
+
+  /**
+   * `affine:data-view` uses the same persisted view format as database.
+   * The original experimental query source implemented the data operations but
+   * omitted the reactive DataSource contract, leaving its rendered component
+   * without a ViewManager. Keep the state derived from the real block model so
+   * imports and ordinary UI changes observe the same Yjs-backed values.
+   */
+  override get parentProvider() {
+    return this.block.store.provider;
+  }
+
+  override featureFlags$: ReadonlySignal<DatabaseFlags> = computed(() => ({
+    enable_table_virtual_scroll: false,
+  }));
+
+  override properties$: ReadonlySignal<string[]> = computed(
+    () => this.properties
+  );
+
+  override propertyMetas$: ReadonlySignal<PropertyMetaConfig[]> = computed(
+    () => this.propertyMetas
+  );
+
+  override allPropertyMetas$: ReadonlySignal<PropertyMetaConfig[]> = computed(
+    () => this.propertyMetas
+  );
+
+  override readonly$: ReadonlySignal<boolean> = computed(
+    () => this.block.store.readonly
+  );
+
+  override rows$: ReadonlySignal<string[]> = computed(() => this.rows);
+
+  override viewConverts = [...viewConverts];
+
+  override viewDataList$: ReadonlySignal<DataViewDataType[]> = computed(
+    () => this.block.props.views
+  );
+
+  override viewManager: ViewManager = new ViewManagerBase(this);
+
+  override viewMetas: ViewMeta[] = [
+    viewPresets.tableViewMeta,
+    viewPresets.kanbanViewMeta,
+    viewPresets.calendarViewMeta,
+  ];
 
   constructor(
     private readonly host: EditorHost,
@@ -220,6 +277,13 @@ export class BlockQueryDataSource extends DataSourceBase {
     }
   }
 
+  propertyDataTypeGet(propertyId: string): TypeInstance | undefined {
+    const column = this.getViewColumn(propertyId);
+    if (!column) return;
+    const meta = this.propertyMetaGet(column.type);
+    return meta?.config.jsonValue.type({ data: column.data, dataSource: this });
+  }
+
   propertyDelete(_id: string): void {
     const index = this.block.props.columns.findIndex(v => v.id === _id);
     if (index >= 0) {
@@ -323,4 +387,64 @@ export class BlockQueryDataSource extends DataSourceBase {
   }
 
   rowMove(_rowId: string, _position: InsertToPosition): void {}
+
+  protected override getNormalPropertyAndIndex(propertyId: string):
+    | {
+        column: ColumnDataType<Record<string, unknown>>;
+        index: number;
+      }
+    | undefined {
+    const index = this.block.props.columns.findIndex(
+      column => column.id === propertyId
+    );
+    const column = this.block.props.columns[index];
+    return column ? { column, index } : undefined;
+  }
+
+  viewDataAdd(viewData: DataViewDataType): string {
+    this.block.store.captureSync();
+    this.block.store.transact(() => {
+      this.block.props.views = [...this.block.props.views, viewData];
+    });
+    return viewData.id;
+  }
+
+  viewDataDelete(viewId: string): void {
+    this.block.deleteView(viewId);
+  }
+
+  viewDataDuplicate(viewId: string): string {
+    return this.block.duplicateView(viewId);
+  }
+
+  viewDataGet(viewId: string): DataViewDataType | undefined {
+    return this.block.props.views.find(view => view.id === viewId);
+  }
+
+  viewDataMoveTo(id: string, position: InsertToPosition): void {
+    this.block.moveViewTo(id, position);
+  }
+
+  viewDataUpdate<ViewData extends DataViewDataType>(
+    id: string,
+    updater: (data: ViewData) => Partial<ViewData>
+  ): void {
+    this.block.updateView(id, updater as any);
+  }
+
+  viewMetaGet(type: string): ViewMeta {
+    const view = this.viewMetas.find(candidate => candidate.type === type);
+    if (!view) {
+      throw new BlockSuiteError(
+        BlockSuiteError.ErrorCode.ValueNotExists,
+        `El tipo de vista ${type} no está registrado.`
+      );
+    }
+    return view;
+  }
+
+  viewMetaGetById(viewId: string): ViewMeta | undefined {
+    const view = this.viewDataGet(viewId);
+    return view ? this.viewMetaGet(view.mode) : undefined;
+  }
 }

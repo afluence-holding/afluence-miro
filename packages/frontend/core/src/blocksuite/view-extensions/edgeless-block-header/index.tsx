@@ -32,11 +32,9 @@ export class EdgelessBlockHeaderConfigViewExtension extends ViewExtensionProvide
   ) {
     super.setup(context, options);
     if (!options) return;
-    const { framework, isInPeekView, reactToLit } = options;
+    const { isInPeekView, reactToLit } = options;
 
-    context.register(
-      patchForEdgelessNoteConfig(framework, reactToLit, isInPeekView)
-    );
+    context.register(patchForEdgelessNoteConfig(reactToLit, isInPeekView));
     context.register(patchForEmbedSyncedDocConfig(reactToLit));
   }
 }

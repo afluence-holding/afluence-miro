@@ -44,6 +44,13 @@ export function getBuildConfig(
         // editorVersion: pkg.dependencies['@blocksuite/affine'],
         editorVersion: pkg.version,
         githubUrl: 'https://github.com/toeverything/AFFiNE',
+        // This fork removed the upstream product links. Keep them disabled
+        // while satisfying the shared build configuration contract.
+        changelogUrl: '',
+        pricingUrl: '',
+        downloadUrl: '',
+        discordUrl: '',
+        requestLicenseUrl: '',
         imageProxyUrl: '/api/worker/image-proxy',
         linkPreviewUrl: '/api/worker/link-preview',
         SENTRY_DSN: process.env.SENTRY_DSN ?? '',

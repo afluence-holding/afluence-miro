@@ -4,10 +4,19 @@ import type {
   DelegatedToolName,
   DelegatedToolRequest,
 } from '@affine/realtime';
+import type {
+  CanvasToolArgsMap,
+  CanvasToolName,
+} from '@affine/realtime/canvas';
 import type { EditorHost } from '@blocksuite/affine/std';
 import { GfxControllerIdentifier } from '@blocksuite/affine/std/gfx';
 import type { Subscription } from 'rxjs';
 
+import type { CanvasRuntime, CanvasRuntimeOptions } from '../canvas';
+import {
+  CANVAS_ACTION_EVENT,
+  type CanvasActionEventDetail,
+} from './canvas-actions';
 import {
   getLiveEditorMode,
   getLiveSelectionIds,
@@ -26,6 +35,11 @@ type HostOptions = {
   sessionId: string;
   workspaceId: string;
   docId: string;
+  persist?: CanvasRuntimeOptions['persist'];
+  createDocument?: CanvasRuntimeOptions['createDocument'];
+  openDocument?: CanvasRuntimeOptions['openDocument'];
+  createArtifact?: CanvasRuntimeOptions['createArtifact'];
+  resolveArtifact?: CanvasRuntimeOptions['resolveArtifact'];
 };
 
 const capabilities: DelegatedToolName[] = [
@@ -33,6 +47,7 @@ const capabilities: DelegatedToolName[] = [
   'frontend_read_selection',
   'frontend_read_nodes',
   'frontend_snapshot_document',
+  'frontend_canvas',
 ];
 
 const STATE_UPSERT_DELAY_MS = 150;
@@ -50,6 +65,7 @@ export class DelegatedEditorHost {
   private upsertInFlight?: Promise<void>;
   private upsertRequested = false;
   private disposed = false;
+  private canvasRuntime?: Promise<CanvasRuntime>;
   private selectionSignature = '';
   private metadataSignature = '';
   private publishedEditorStateId?: string;
@@ -62,6 +78,28 @@ export class DelegatedEditorHost {
   >();
   private readonly focusChanged = () => {
     void this.requestUpsert().catch(console.error);
+  };
+  private readonly canvasAction = (event: Event) => {
+    const detail = (event as CustomEvent<CanvasActionEventDetail>).detail;
+    if (
+      !detail ||
+      detail.claimed ||
+      this.disposed ||
+      detail.action.binding.workspaceId !== this.options.workspaceId ||
+      detail.action.binding.docId !== this.options.docId ||
+      getLiveEditorMode(this.options.host) !== 'edgeless'
+    )
+      return;
+    detail.claimed = true;
+    detail.accept(
+      this.options.realtime.request('copilot.canvas.execute', {
+        workspaceId: this.options.workspaceId,
+        docId: this.options.docId,
+        clientId: this.clientId,
+        tool: detail.action.tool,
+        args: detail.action.args,
+      })
+    );
   };
 
   constructor(private readonly options: HostOptions) {}
@@ -77,6 +115,7 @@ export class DelegatedEditorHost {
 
   async start() {
     this.disposed = false;
+    document.addEventListener(CANVAS_ACTION_EVENT, this.canvasAction);
     this.subscription = this.options.realtime
       .subscribe('copilot.delegated.tool.requested', {
         clientId: this.clientId,
@@ -121,6 +160,7 @@ export class DelegatedEditorHost {
 
   dispose() {
     this.disposed = true;
+    document.removeEventListener(CANVAS_ACTION_EVENT, this.canvasAction);
     this.subscription?.unsubscribe();
     this.blockSubscription?.unsubscribe();
     this.selectionSubscription?.unsubscribe();
@@ -133,6 +173,9 @@ export class DelegatedEditorHost {
     document.removeEventListener('visibilitychange', this.focusChanged);
     for (const request of this.inFlight.values()) request.abort.abort();
     this.inFlight.clear();
+    void this.canvasRuntime
+      ?.then(runtime => runtime.dispose())
+      .catch(console.error);
     if (this.heartbeat) clearTimeout(this.heartbeat);
     if (this.stateUpsert) clearTimeout(this.stateUpsert);
     const release = () =>
@@ -266,7 +309,10 @@ export class DelegatedEditorHost {
       await this.sendError(request, 'FRONTEND_TIMEOUT');
       return;
     }
-    if (request.editorStateId !== this.editorStateId) {
+    if (
+      request.tool !== 'frontend_canvas' &&
+      request.editorStateId !== this.editorStateId
+    ) {
       await this.sendError(request, 'EDITOR_STATE_CHANGED');
       return;
     }
@@ -274,14 +320,23 @@ export class DelegatedEditorHost {
     const abort = new AbortController();
     this.inFlight.set(request.requestId, { identity, abort });
     try {
-      const result = await Promise.resolve(this.execute(request));
+      const result = await this.execute(request, abort.signal);
       if (abort.signal.aborted) return;
       this.refreshMetadataState(true);
-      if (request.editorStateId !== this.editorStateId) {
+      if (
+        request.tool !== 'frontend_canvas' &&
+        request.editorStateId !== this.editorStateId
+      ) {
         await this.sendError(request, 'EDITOR_STATE_CHANGED');
         return;
       }
-      const resultError = this.resultError(result);
+      // Canvas plans validate a content revision and return their own receipt.
+      // A legitimate commit, selection or viewport change must not invalidate
+      // its transport acknowledgement (legacy read tools retain that check).
+      const resultError =
+        request.tool === 'frontend_canvas'
+          ? undefined
+          : this.resultError(result);
       if (resultError) {
         await this.options.realtime.request('copilot.delegated.tool.respond', {
           ...this.identity(request),
@@ -291,11 +346,46 @@ export class DelegatedEditorHost {
       }
       await this.options.realtime.request('copilot.delegated.tool.respond', {
         ...this.identity(request),
-        result,
+        result:
+          request.tool === 'frontend_canvas'
+            ? {
+                ...result,
+                editor_state_id: request.editorStateId,
+                editor_state_after_id: this.editorStateId,
+              }
+            : result,
       });
+      // Navigating can unmount this host and abort in-flight requests. The
+      // focus receipt must reach the server before handing off to the new doc.
+      if (
+        request.tool === 'frontend_canvas' &&
+        request.args.tool === 'canvas_focus'
+      ) {
+        const envelope = result as Record<string, unknown>;
+        const data =
+          envelope.ok === true &&
+          envelope.data &&
+          typeof envelope.data === 'object'
+            ? (envelope.data as Record<string, unknown>)
+            : undefined;
+        const navigation = data?.navigation;
+        if (
+          navigation &&
+          typeof navigation === 'object' &&
+          'docId' in navigation &&
+          typeof navigation.docId === 'string'
+        ) {
+          await this.options.openDocument?.({ docId: navigation.docId });
+        }
+      }
     } catch {
       if (abort.signal.aborted) return;
-      await this.sendError(request, 'FRONTEND_READ_FAILED');
+      await this.sendError(
+        request,
+        request.tool === 'frontend_canvas'
+          ? 'OPERATION_CONFLICT'
+          : 'FRONTEND_READ_FAILED'
+      );
     } finally {
       this.inFlight.delete(request.requestId);
     }
@@ -309,7 +399,7 @@ export class DelegatedEditorHost {
     }
   }
 
-  private execute(request: DelegatedToolRequest) {
+  private async execute(request: DelegatedToolRequest, signal: AbortSignal) {
     switch (request.tool) {
       case 'frontend_get_editor_state':
         return readEditorState(this.options.host, this.editorStateId);
@@ -327,6 +417,74 @@ export class DelegatedEditorHost {
           this.editorStateId,
           request.args
         );
+      case 'frontend_canvas': {
+        if (getLiveEditorMode(this.options.host) !== 'edgeless') {
+          return {
+            ok: false,
+            error: {
+              code: 'EDITOR_UNAVAILABLE',
+              message: 'Open the document in Edgeless mode.',
+              retryable: true,
+            },
+          };
+        }
+        const { tool, ...args } = request.args;
+        this.canvasRuntime ??= import('../canvas').then(
+          ({ CanvasRuntime }) =>
+            new CanvasRuntime({
+              host: this.options.host,
+              workspaceId: this.options.workspaceId,
+              docId: this.options.docId,
+              persist: this.options.persist,
+              createDocument: this.options.createDocument,
+              openDocument: this.options.openDocument,
+              deferNavigation: true,
+              createArtifact: this.options.createArtifact,
+              resolveArtifact: this.options.resolveArtifact,
+              authorizeTarget: async ({ docId, create, signal }) => {
+                signal?.throwIfAborted();
+                const result = await this.options.realtime.request(
+                  'copilot.canvas.authorize',
+                  {
+                    workspaceId: this.options.workspaceId,
+                    docId: this.options.docId,
+                    clientId: this.clientId,
+                    targetDocId: docId,
+                    create,
+                  }
+                );
+                signal?.throwIfAborted();
+                if (result.error)
+                  throw new Error(
+                    `${result.error.code}: ${result.error.message}`
+                  );
+                return result;
+              },
+            })
+        );
+        const runtime = await this.canvasRuntime;
+        if (this.disposed || signal.aborted) {
+          return {
+            ok: false,
+            error: {
+              code: 'OPERATION_CONFLICT',
+              message: 'The editor request was cancelled before execution.',
+              retryable: false,
+            },
+          };
+        }
+        return runtime.execute(
+          tool as CanvasToolName,
+          args as unknown as CanvasToolArgsMap[CanvasToolName],
+          {
+            signal,
+            deadline: request.deadlineAt,
+            taskId: request.runId,
+            canWrite: request.canvasAuthorization?.canWrite ?? false,
+            canCreateDoc: request.canvasAuthorization?.canCreateDoc ?? false,
+          }
+        );
+      }
     }
   }
 
@@ -363,12 +521,23 @@ export class DelegatedEditorHost {
   }
 
   private sendError(request: DelegatedToolRequest, code: string) {
+    const canvas = request.tool === 'frontend_canvas';
+    const canvasCode =
+      code === 'OPERATION_CONFLICT'
+        ? code
+        : code === 'FRONTEND_TIMEOUT'
+          ? 'BUDGET_EXCEEDED'
+          : 'EDITOR_UNAVAILABLE';
     return this.options.realtime.request('copilot.delegated.tool.respond', {
       ...this.identity(request),
       error: {
-        code,
-        message: 'The focused editor changed before the read completed.',
-        retryable: true,
+        code: canvas ? canvasCode : code,
+        message: canvas
+          ? canvasCode === 'OPERATION_CONFLICT'
+            ? 'The canvas request failed without a confirmed outcome. Query its original requestId before retrying.'
+            : 'The requested canvas editor is unavailable or the request expired before execution.'
+          : 'The focused editor changed before the read completed.',
+        retryable: canvas ? canvasCode === 'EDITOR_UNAVAILABLE' : true,
       },
     });
   }

@@ -18,7 +18,6 @@ import {
 } from '@affine/graphql';
 import { Trans, useI18n } from '@affine/i18n';
 import { useLiveData, useService } from '@toeverything/infra';
-import { cssVarV2 } from '@toeverything/theme/v2';
 import clsx from 'clsx';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 

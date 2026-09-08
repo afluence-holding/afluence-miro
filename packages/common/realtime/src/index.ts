@@ -4,6 +4,38 @@ export type RealtimeTopicName = keyof RealtimeTopicMap;
 export const WORKSPACE_MEMBERS_REQUEST_TAKE_MAX = 100;
 
 export interface RealtimeRequestMap {
+  'copilot.canvas.authorize': {
+    input: {
+      workspaceId: string;
+      docId: string;
+      clientId: string;
+      targetDocId: string;
+      create: boolean;
+    };
+    output:
+      | {
+          canRead: boolean;
+          canWrite: boolean;
+          canCreateDoc: boolean;
+          error?: never;
+        }
+      | {
+          error: { code: string; message: string; retryable: boolean };
+          canRead?: never;
+          canWrite?: never;
+          canCreateDoc?: never;
+        };
+  };
+  'copilot.canvas.execute': {
+    input: {
+      workspaceId: string;
+      docId: string;
+      clientId: string;
+      tool: 'canvas_operation' | 'canvas_focus';
+      args: Record<string, unknown>;
+    };
+    output: unknown;
+  };
   'copilot.delegated.editor.upsert': {
     input: DelegatedEditorLeaseInput;
     output: { ok: true; expiresAt: number };
@@ -340,7 +372,8 @@ export type DelegatedToolName =
   | 'frontend_get_editor_state'
   | 'frontend_read_selection'
   | 'frontend_read_nodes'
-  | 'frontend_snapshot_document';
+  | 'frontend_snapshot_document'
+  | 'frontend_canvas';
 
 export interface DelegatedEditorLeaseInput {
   clientId: string;
@@ -370,6 +403,8 @@ export interface DelegatedToolRequest extends DelegatedToolIdentity {
   tool: DelegatedToolName;
   args: Record<string, unknown>;
   deadlineAt: number;
+  /** Server-derived permissions, never supplied by model arguments. */
+  canvasAuthorization?: { canWrite: boolean; canCreateDoc: boolean };
 }
 
 export interface DelegatedToolCancel extends DelegatedToolIdentity {

@@ -92,3 +92,33 @@ pub fn llm_list_built_in_prompt_specs() -> Result<Vec<BuiltInPromptSpec>> {
 pub fn llm_get_built_in_prompt_spec(name: String) -> Result<Option<BuiltInPromptSpec>> {
   Ok(built_in_prompt_spec(&name).cloned())
 }
+
+#[cfg(test)]
+mod tests {
+  use serde_json::json;
+
+  use super::llm_render_built_in_prompt;
+  use crate::llm::core::contracts::BuiltInPromptRenderContract;
+
+  #[test]
+  fn authorized_canvas_handles_reach_the_rendered_model_prompt() {
+    let rendered = llm_render_built_in_prompt(BuiltInPromptRenderContract {
+      name: "Chat With AFFiNE AI".to_string(),
+      render_params: json!({
+        "canvasArtifacts": [{
+          "handle": "cah_authorized_handle",
+          "mimeType": "image/png",
+          "size": 3
+        }]
+      }),
+    })
+    .expect("the built-in chat prompt renders canvas artifact metadata");
+
+    assert!(
+      rendered
+        .messages
+        .iter()
+        .any(|message| message.content.contains("cah_authorized_handle"))
+    );
+  }
+}

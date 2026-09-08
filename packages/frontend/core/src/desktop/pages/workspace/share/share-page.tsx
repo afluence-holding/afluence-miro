@@ -5,12 +5,11 @@ import { useActiveBlocksuiteEditor } from '@affine/core/components/hooks/use-blo
 import { useNavigateHelper } from '@affine/core/components/hooks/use-navigate-helper';
 import { PageDetailEditor } from '@affine/core/components/page-detail-editor';
 import { AppContainer } from '@affine/core/desktop/components/app-container';
-import { AuthService, ServerService } from '@affine/core/modules/cloud';
+import { ServerService } from '@affine/core/modules/cloud';
 import { type Doc, DocsService } from '@affine/core/modules/doc';
 import {
   type Editor,
   type EditorSelector,
-  EditorService,
   EditorsService,
 } from '@affine/core/modules/editor';
 import { PeekViewManagerModal } from '@affine/core/modules/peek-view';

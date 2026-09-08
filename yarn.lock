@@ -383,6 +383,7 @@ __metadata:
     "@affine/i18n": "workspace:*"
     "@affine/nbstore": "workspace:*"
     "@affine/reader": "workspace:*"
+    "@affine/realtime": "workspace:*"
     "@affine/templates": "workspace:*"
     "@affine/track": "workspace:*"
     "@atlaskit/pragmatic-drag-and-drop": "npm:^2.0.0"
@@ -434,6 +435,7 @@ __metadata:
     dompurify: "npm:^3.4.11"
     eventemitter2: "npm:^6.4.9"
     fake-indexeddb: "npm:^6.0.0"
+    fflate: "npm:^0.8.2"
     file-type: "npm:^21.0.0"
     filesize: "npm:^10.1.6"
     foxact: "npm:^0.2.49"
@@ -455,6 +457,7 @@ __metadata:
     mp4-muxer: "npm:^5.2.2"
     nanoid: "npm:^5.1.6"
     next-themes: "npm:^0.4.4"
+    pdf-lib: "npm:^1.17.1"
     query-string: "npm:^9.1.1"
     react: "npm:^19.2.1"
     react-dom: "npm:^19.2.1"
@@ -836,6 +839,7 @@ __metadata:
   resolution: "@affine/realtime@workspace:packages/common/realtime"
   dependencies:
     "@affine/graphql": "workspace:*"
+    vitest: "npm:^4.1.8"
   languageName: unknown
   linkType: soft
 
@@ -1007,6 +1011,7 @@ __metadata:
     supertest: "npm:^7.1.4"
     tldts: "npm:^7.0.19"
     typescript: "npm:^5.9.3"
+    vitest: "npm:^4.1.8"
     why-is-node-running: "npm:^3.2.2"
     winston: "npm:^3.17.0"
     yjs: "npm:^13.6.27"

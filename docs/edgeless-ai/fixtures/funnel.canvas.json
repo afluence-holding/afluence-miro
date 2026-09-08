@@ -1,0 +1,218 @@
+{
+  "schemaVersion": 1,
+  "recipeVersion": 1,
+  "nodes": [
+    {
+      "id": "etapa-1",
+      "kind": "shape",
+      "bounds": {
+        "x": 100,
+        "y": 100,
+        "w": 240,
+        "h": 96
+      },
+      "layout": "preserve",
+      "design": {
+        "role": "body",
+        "order": 0
+      },
+      "props": {
+        "shapeType": "rect",
+        "text": "Atracción",
+        "fontSize": 20,
+        "fillColor": "#F4F4F5",
+        "strokeColor": "#52525B"
+      }
+    },
+    {
+      "id": "etapa-2",
+      "kind": "shape",
+      "bounds": {
+        "x": 100,
+        "y": 260,
+        "w": 240,
+        "h": 96
+      },
+      "layout": "preserve",
+      "design": {
+        "role": "body",
+        "order": 1
+      },
+      "props": {
+        "shapeType": "rect",
+        "text": "Landing",
+        "fontSize": 20,
+        "fillColor": "#F4F4F5",
+        "strokeColor": "#52525B"
+      }
+    },
+    {
+      "id": "etapa-3",
+      "kind": "shape",
+      "bounds": {
+        "x": 100,
+        "y": 420,
+        "w": 240,
+        "h": 96
+      },
+      "layout": "preserve",
+      "design": {
+        "role": "body",
+        "order": 2
+      },
+      "props": {
+        "shapeType": "rect",
+        "text": "Captura de lead",
+        "fontSize": 20,
+        "fillColor": "#F4F4F5",
+        "strokeColor": "#52525B"
+      }
+    },
+    {
+      "id": "etapa-4",
+      "kind": "shape",
+      "bounds": {
+        "x": 100,
+        "y": 580,
+        "w": 240,
+        "h": 96
+      },
+      "layout": "preserve",
+      "design": {
+        "role": "body",
+        "order": 3
+      },
+      "props": {
+        "shapeType": "rect",
+        "text": "Oferta",
+        "fontSize": 20,
+        "fillColor": "#F4F4F5",
+        "strokeColor": "#52525B"
+      }
+    },
+    {
+      "id": "etapa-5",
+      "kind": "shape",
+      "bounds": {
+        "x": 100,
+        "y": 740,
+        "w": 240,
+        "h": 96
+      },
+      "layout": "preserve",
+      "design": {
+        "role": "body",
+        "order": 4
+      },
+      "props": {
+        "shapeType": "rect",
+        "text": "Compra",
+        "fontSize": 20,
+        "fillColor": "#F4F4F5",
+        "strokeColor": "#52525B"
+      }
+    },
+    {
+      "id": "etapa-6",
+      "kind": "shape",
+      "bounds": {
+        "x": 100,
+        "y": 900,
+        "w": 240,
+        "h": 96
+      },
+      "layout": "preserve",
+      "design": {
+        "role": "body",
+        "order": 5
+      },
+      "props": {
+        "shapeType": "rect",
+        "text": "Seguimiento",
+        "fontSize": 20,
+        "fillColor": "#F4F4F5",
+        "strokeColor": "#52525B"
+      }
+    },
+    {
+      "id": "flecha-1",
+      "kind": "connector",
+      "sourceId": "etapa-1",
+      "targetId": "etapa-2",
+      "bounds": {
+        "x": 220,
+        "y": 196,
+        "w": 1,
+        "h": 64
+      },
+      "props": {
+        "mode": 1,
+        "routing": "avoid-obstacles"
+      }
+    },
+    {
+      "id": "flecha-2",
+      "kind": "connector",
+      "sourceId": "etapa-2",
+      "targetId": "etapa-3",
+      "bounds": {
+        "x": 220,
+        "y": 356,
+        "w": 1,
+        "h": 64
+      },
+      "props": {
+        "mode": 1,
+        "routing": "avoid-obstacles"
+      }
+    },
+    {
+      "id": "flecha-3",
+      "kind": "connector",
+      "sourceId": "etapa-3",
+      "targetId": "etapa-4",
+      "bounds": {
+        "x": 220,
+        "y": 516,
+        "w": 1,
+        "h": 64
+      },
+      "props": {
+        "mode": 1,
+        "routing": "avoid-obstacles"
+      }
+    },
+    {
+      "id": "flecha-4",
+      "kind": "connector",
+      "sourceId": "etapa-4",
+      "targetId": "etapa-5",
+      "bounds": {
+        "x": 220,
+        "y": 676,
+        "w": 1,
+        "h": 64
+      },
+      "props": {
+        "mode": 1,
+        "routing": "avoid-obstacles"
+      }
+    },
+    {
+      "id": "flecha-5",
+      "kind": "connector",
+      "sourceId": "etapa-5",
+      "targetId": "etapa-6",
+      "bounds": {
+        "x": 220,
+        "y": 836,
+        "w": 1,
+        "h": 64
+      },
+      "props": {
+        "mode": 1,
+        "routing": "avoid-obstacles"
+      }
+    }
+  ]
+}

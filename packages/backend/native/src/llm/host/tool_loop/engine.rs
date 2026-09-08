@@ -5,10 +5,13 @@ use std::sync::{
 
 use llm_adapter::{
   backend::{BackendConfig, BackendError, ChatProtocol, DefaultHttpClient},
-  core::CoreRequest,
+  core::{CoreContent, CoreMessage, CoreRequest, CoreRole},
   router::{PreparedChatRoute, RoutedBackend, dispatch_prepared_stream_with_fallback_index},
 };
-use llm_runtime::{RoundOutcome, RoundProcessorError, run_prepared_stream_round_with_fallback, run_tool_loop};
+use llm_runtime::{
+  RoundOutcome, RoundProcessorError, ToolLoopEvent, ToolResultMessage, append_tool_turns,
+  run_prepared_stream_round_with_fallback,
+};
 use napi::{
   bindgen_prelude::PromiseRaw,
   threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
@@ -16,15 +19,18 @@ use napi::{
 
 use super::{
   super::emit_provider_selected_event,
-  callback::{NapiEventSink, NapiToolExecutor, emit_tool_loop_event},
+  callback::{emit_tool_loop_event, execute_tool_callback_with_media},
 };
 use crate::llm::{
   LlmDispatchPayload, LlmMiddlewarePayload, LlmStreamHandle, STREAM_ABORTED_REASON,
   STREAM_CALLBACK_DISPATCH_FAILED_REASON, STREAM_END_MARKER, StreamPipeline, apply_request_middlewares,
   backend_transport_error, emit_error_event, resolve_stream_chain,
 };
+use base64::{Engine, engine::general_purpose::STANDARD};
+use serde_json::json;
 
 pub(crate) type PreparedToolLoopRoute = (PreparedChatRoute, LlmMiddlewarePayload);
+const MAX_INLINE_TOOL_IMAGE_BYTES: usize = 512 * 1024;
 
 fn dispatch_prepared_round_with_fallback(
   routes: &[PreparedToolLoopRoute],
@@ -139,28 +145,131 @@ where
   ) -> std::result::Result<RoundOutcome, BackendError>,
 {
   let mut messages = payload.request.messages.clone();
-  let tool_executor = NapiToolExecutor::new(tool_callback);
-  let event_sink = NapiEventSink::new_with_emitted(callback, emitted);
-  run_tool_loop(
-    &mut messages,
-    max_steps,
-    |messages| {
+  for step in 0..max_steps {
+    let outcome = {
       if aborted.load(Ordering::Relaxed) {
         return Err(backend_transport_error(STREAM_ABORTED_REASON));
       }
-
       let request = CoreRequest {
         messages: messages.to_vec(),
         stream: true,
         ..payload.request.clone()
       };
+      dispatch_round_fn(&request, callback, &aborted, emitted)?
+    };
+    if outcome.tool_calls.is_empty() {
+      if let Some(done) = outcome.final_done {
+        emitted.store(true, Ordering::Relaxed);
+        emit_tool_loop_event(callback, &done)?;
+      }
+      return Ok(());
+    }
+    if step == max_steps - 1 {
+      return Err(backend_transport_error("ToolCallLoop max steps reached"));
+    }
 
-      dispatch_round_fn(&request, callback, &aborted, emitted)
-    },
-    tool_executor,
-    event_sink,
-    || backend_transport_error("ToolCallLoop max steps reached"),
-  )
+    let mut results = Vec::with_capacity(outcome.tool_calls.len());
+    let mut images = Vec::new();
+    for call in &outcome.tool_calls {
+      let execution = execute_tool_callback_with_media(tool_callback, call)
+        .map_err(|error| backend_transport_error(error.to_string()))?;
+      let result = execution.result;
+      emitted.store(true, Ordering::Relaxed);
+      emit_tool_loop_event(
+        callback,
+        &ToolLoopEvent::ToolResult {
+          call_id: result.call_id.clone(),
+          name: result.name.clone(),
+          arguments: result.arguments.clone(),
+          arguments_text: result.arguments_text.clone(),
+          arguments_error: result.arguments_error.clone(),
+          output: result.output.clone(),
+          is_error: result.is_error,
+        },
+      )?;
+      images.push((result.name.clone(), execution.media));
+      results.push(ToolResultMessage {
+        call_id: result.call_id,
+        output: result.output,
+        is_error: result.is_error,
+      });
+    }
+    append_tool_turns(&mut messages, &outcome.tool_calls, &results);
+    for (tool_name, parts) in images {
+      append_inline_images(&mut messages, &tool_name, parts)?;
+    }
+  }
+  Err(backend_transport_error("ToolCallLoop max steps reached"))
+}
+
+fn append_inline_images(
+  messages: &mut Vec<CoreMessage>,
+  tool_name: &str,
+  parts: Vec<super::callback::InlineImagePart>,
+) -> std::result::Result<(), BackendError> {
+  for part in parts {
+    if !matches!(part.mime_type.as_str(), "image/png" | "image/jpeg" | "image/webp") {
+      return Err(backend_transport_error("Unsupported inline tool image MIME type"));
+    }
+    let bytes = STANDARD
+      .decode(&part.data)
+      .map_err(|_| backend_transport_error("Invalid inline tool image encoding"))?;
+    if bytes.is_empty() || bytes.len() > MAX_INLINE_TOOL_IMAGE_BYTES {
+      return Err(backend_transport_error("Inline tool image exceeds the size limit"));
+    }
+    messages.push(CoreMessage {
+      role: CoreRole::User,
+      content: vec![
+        CoreContent::Text {
+          text: format!("Image returned by {tool_name}; inspect these pixels before making any visual claim."),
+        },
+        CoreContent::Image {
+          source: json!({ "kind": "bytes", "data": part.data, "mimeType": part.mime_type }),
+        },
+      ],
+    });
+  }
+  Ok(())
+}
+
+#[cfg(test)]
+mod inline_image_tests {
+  use super::*;
+
+  #[test]
+  fn appends_a_bounded_canvas_render_as_a_native_image_part() {
+    let mut messages = Vec::new();
+    append_inline_images(
+      &mut messages,
+      "canvas_render",
+      vec![super::super::callback::InlineImagePart {
+        mime_type: "image/png".to_string(),
+        data: STANDARD.encode(b"canvas pixels"),
+      }],
+    )
+    .expect("bounded inline image should be accepted");
+
+    assert!(
+      matches!(messages.as_slice(), [CoreMessage { role: CoreRole::User, content }]
+      if matches!(content.as_slice(), [CoreContent::Text { .. }, CoreContent::Image { source }]
+        if source["kind"] == "bytes" && source["mimeType"] == "image/png"))
+    );
+  }
+
+  #[test]
+  fn rejects_inline_images_over_the_transport_budget() {
+    let mut messages = Vec::new();
+    let result = append_inline_images(
+      &mut messages,
+      "canvas_render",
+      vec![super::super::callback::InlineImagePart {
+        mime_type: "image/png".to_string(),
+        data: STANDARD.encode(vec![0_u8; MAX_INLINE_TOOL_IMAGE_BYTES + 1]),
+      }],
+    );
+    assert!(result.is_err());
+    assert!(messages.is_empty());
+  }
 }
 
 fn run_native_tool_loop(

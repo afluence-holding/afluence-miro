@@ -1,7 +1,7 @@
+import { AfluenceLogo } from '@affine/component';
 import { WorkspaceDialogService } from '@affine/core/modules/dialogs';
 import { appIconMap, appNames } from '@affine/core/utils/channel';
 import { Trans, useI18n } from '@affine/i18n';
-import { AfluenceLogo } from '@affine/component';
 import { LocalWorkspaceIcon } from '@blocksuite/icons/rc';
 import { useServiceOptional } from '@toeverything/infra';
 import type { MouseEvent } from 'react';
@@ -57,7 +57,6 @@ export const OpenInAppPage = ({
         <a href="/" rel="noreferrer" className={styles.affineLogo}>
           <AfluenceLogo variant="horizontal" size={28} />
         </a>
-
       </div>
 
       <div className={styles.centerContent}>

@@ -1,10 +1,18 @@
+import { validateCanvasToolArgs } from '@affine/realtime/canvas';
 import { Injectable } from '@nestjs/common';
 import { McpAccessMode } from '@prisma/client';
 import z from 'zod/v3';
 
 import { DocReader, DocWriter } from '../../../core/doc';
 import { PermissionAccess } from '../../../core/permission';
+import { DelegatedEditorService } from '../delegated/service';
 import { DocumentRetrievalService } from '../retrieval/document';
+import { type CanvasToolName, CanvasToolSchemas } from '../tools/canvas';
+import { toToolJsonSchema } from '../tools/json-schema';
+import {
+  mcpCanvasRequestAllowed,
+  restrictCanvasCapabilitiesForReadOnlyMcp,
+} from './canvas-policy';
 
 type McpTextContent = {
   type: 'text';
@@ -75,6 +83,116 @@ function abortIfNeeded(
   return;
 }
 
+function canvasInputSchema(tool: CanvasToolName): Record<string, unknown> {
+  const schema = toToolJsonSchema(CanvasToolSchemas[tool]);
+  const properties =
+    schema.properties && typeof schema.properties === 'object'
+      ? (schema.properties as Record<string, unknown>)
+      : {};
+  const required = Array.isArray(schema.required)
+    ? schema.required.filter((item): item is string => typeof item === 'string')
+    : [];
+  return {
+    ...schema,
+    type: 'object',
+    properties: {
+      clientId: {
+        type: 'string',
+        description:
+          'Explicit live Edgeless editor client ID returned by the application.',
+      },
+      docId: {
+        type: 'string',
+        description:
+          'Explicit document ID currently bound to that live editor.',
+      },
+      ...properties,
+    },
+    required: ['clientId', 'docId', ...required],
+    additionalProperties: false,
+  };
+}
+
+function canvasResult(result: unknown): WorkspaceMcpToolResult {
+  const json = JSON.stringify(result);
+  if (
+    result &&
+    typeof result === 'object' &&
+    'error' in result &&
+    (result as { error?: unknown }).error
+  ) {
+    return { isError: true, content: [{ type: 'text', text: json }] };
+  }
+  return toolText(json);
+}
+
+const CanvasMcpTools: ReadonlyArray<{
+  name: CanvasToolName;
+  title: string;
+  description: string;
+}> = [
+  {
+    name: 'canvas_capabilities',
+    title: 'Canvas Capabilities',
+    description:
+      'Read the versioned capabilities of one explicitly selected live Edgeless editor.',
+  },
+  {
+    name: 'canvas_read',
+    title: 'Canvas Read',
+    description:
+      'Read a bounded, revisioned projection from one explicitly selected live Edgeless editor.',
+  },
+  {
+    name: 'canvas_validate',
+    title: 'Canvas Validate',
+    description:
+      'Validate a typed native canvas operation batch and return an immutable plan without writing.',
+  },
+  {
+    name: 'canvas_layout',
+    title: 'Canvas Layout',
+    description:
+      'Prepare an exact canvas-unit layout plan without moving objects.',
+  },
+  {
+    name: 'canvas_render',
+    title: 'Canvas Render',
+    description:
+      'Render an explicit live-canvas scope or plan preview with its real revision metadata.',
+  },
+  {
+    name: 'canvas_apply',
+    title: 'Canvas Apply',
+    description:
+      'Apply a previously validated plan with an idempotent requestId and return its receipt.',
+  },
+  {
+    name: 'canvas_operation',
+    title: 'Canvas Operation',
+    description:
+      'Read or control one named canvas operation. Cancel, revert, and redo may write.',
+  },
+  {
+    name: 'canvas_focus',
+    title: 'Canvas Focus',
+    description:
+      'Focus or select an explicit scope in the selected live editor without changing document content.',
+  },
+  {
+    name: 'canvas_import',
+    title: 'Canvas Import',
+    description:
+      'Prepare an import plan from typed content for the selected live canvas; apply it separately.',
+  },
+  {
+    name: 'canvas_export',
+    title: 'Canvas Export',
+    description:
+      'Export an explicit live-canvas scope and return an authorized artifact report.',
+  },
+];
+
 function defineTool<T extends z.ZodTypeAny>(
   config: ToolExecutorInput<T>
 ): WorkspaceMcpToolDefinition {
@@ -100,7 +218,8 @@ export class WorkspaceMcpProvider {
     private readonly ac: PermissionAccess,
     private readonly reader: DocReader,
     private readonly writer: DocWriter,
-    private readonly retrieval: DocumentRetrievalService
+    private readonly retrieval: DocumentRetrievalService,
+    private readonly delegated: DelegatedEditorService
   ) {}
 
   async for(
@@ -200,7 +319,122 @@ export class WorkspaceMcpProvider {
       },
     });
 
-    const tools = [readDocument, docSearch];
+    const canvasEditors = defineTool({
+      name: 'canvas_editors',
+      title: 'Available Canvas Editors',
+      description:
+        'List live Edgeless editors registered by an open chat in this workspace. Use one returned clientId/docId pair explicitly; never infer an editor.',
+      parser: z.object({}).strict(),
+      inputSchema: {
+        type: 'object',
+        properties: {},
+        additionalProperties: false,
+      },
+      execute: async (_input, options) => {
+        const result = await this.delegated.listCanvasEditors(
+          userId,
+          workspaceId
+        );
+        const aborted = abortIfNeeded(options.signal);
+        if (aborted) return aborted;
+        return toolText(JSON.stringify(result));
+      },
+    });
+
+    const canvasTools = CanvasMcpTools.filter(tool =>
+      this.delegated.canvasToolEnabled(tool.name, { tool: tool.name }, 'mcp')
+    ).map(tool =>
+      defineTool({
+        name: tool.name,
+        title: tool.title,
+        description: tool.description,
+        parser: z
+          .object({ clientId: z.string().min(1), docId: z.string().min(1) })
+          .passthrough(),
+        inputSchema: canvasInputSchema(tool.name),
+        execute: async ({ clientId, docId, ...canvasArgs }, options) => {
+          const parsed = CanvasToolSchemas[tool.name].safeParse(canvasArgs);
+          if (!parsed.success) {
+            return toolError(
+              `Invalid canvas arguments: ${parsed.error.issues
+                .map(
+                  issue =>
+                    `${issue.path.join('.') || 'input'}: ${issue.message}`
+                )
+                .join('; ')}`
+            );
+          }
+
+          const shared = validateCanvasToolArgs(tool.name, canvasArgs);
+          if (!shared.ok) {
+            return toolError(
+              JSON.stringify({ ok: false, error: shared.error })
+            );
+          }
+          const canvasData = shared.value as unknown as Record<string, unknown>;
+          if (
+            !mcpCanvasRequestAllowed(
+              accessMode === McpAccessMode.READ_WRITE,
+              tool.name,
+              canvasData
+            )
+          ) {
+            return toolError(
+              JSON.stringify({
+                ok: false,
+                error: {
+                  code: 'PERMISSION_DENIED',
+                  message: 'This MCP credential is read-only.',
+                },
+              })
+            );
+          }
+          const destination =
+            canvasData.destination &&
+            typeof canvasData.destination === 'object' &&
+            !Array.isArray(canvasData.destination)
+              ? (canvasData.destination as Record<string, unknown>)
+              : undefined;
+          if (
+            destination &&
+            destination.type === 'existing' &&
+            destination.documentId !== docId
+          ) {
+            return toolError(
+              'Invalid canvas arguments: destination.documentId must equal the explicit docId editor binding.'
+            );
+          }
+          if (
+            destination &&
+            destination.type === 'new_document' &&
+            destination.workspaceId !== workspaceId
+          ) {
+            return toolError(
+              'Invalid canvas arguments: destination.workspaceId must equal the MCP workspace.'
+            );
+          }
+
+          const result = await this.delegated.executeCanvasFromMcp(
+            userId,
+            workspaceId,
+            clientId,
+            docId,
+            { tool: tool.name, ...canvasData },
+            options.signal,
+            undefined,
+            accessMode === McpAccessMode.READ_WRITE
+          );
+          return canvasResult(
+            tool.name === 'canvas_capabilities' &&
+              accessMode !== McpAccessMode.READ_WRITE
+              ? restrictCanvasCapabilitiesForReadOnlyMcp(result)
+              : result
+          );
+        },
+      })
+    );
+
+    const tools = [readDocument, docSearch, canvasEditors, ...canvasTools];
 
     if (
       accessMode === McpAccessMode.READ_WRITE &&

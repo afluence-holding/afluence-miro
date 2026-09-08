@@ -6,6 +6,7 @@ import { ChatContentPureText } from '../components/ai-message-content/pure-text'
 import { ChatContentRichText } from '../components/ai-message-content/rich-text';
 import { ChatContentStreamObjects } from '../components/ai-message-content/stream-objects';
 import { ArtifactPreviewPanel } from '../components/ai-tools/artifacts-preview-panel';
+import { CanvasOperationCard } from '../components/ai-tools/canvas-operation-card';
 import {
   CodeArtifactTool,
   CodeHighlighter,
@@ -44,6 +45,7 @@ const sharedElements = {
   'text-renderer': TextRenderer,
   'tool-call-card': ToolCallCard,
   'tool-result-card': ToolResultCard,
+  'canvas-operation-card': CanvasOperationCard,
   'tool-call-failed': ToolFailedCard,
   'doc-semantic-search-result': DocSemanticSearchResult,
   'doc-keyword-search-result': DocKeywordSearchResult,

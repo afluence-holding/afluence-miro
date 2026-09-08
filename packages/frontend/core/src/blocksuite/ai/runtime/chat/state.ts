@@ -7,6 +7,8 @@ export type AIChatScope =
       workspaceId: string;
       docId: string;
       pendingSessionId?: string;
+      /** Explicit canvas navigation retains this chat while the editor binds to the target doc. */
+      continuationSessionId?: string;
     }
   | {
       kind: 'workspace';

@@ -9,6 +9,7 @@ export const sharedEffectElementTags = [
   'text-renderer',
   'tool-call-card',
   'tool-result-card',
+  'canvas-operation-card',
   'tool-call-failed',
   'doc-semantic-search-result',
   'doc-keyword-search-result',

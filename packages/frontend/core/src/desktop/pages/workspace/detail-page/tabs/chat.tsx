@@ -17,6 +17,7 @@ import {
 } from '@affine/core/blocksuite/ai/components/ai-chat-toolbar';
 import { createPlaygroundModal } from '@affine/core/blocksuite/ai/components/playground/modal';
 import { registerAIAppEffects } from '@affine/core/blocksuite/ai/effects/app';
+import { canvasArtifactClient } from '@affine/core/blocksuite/ai/runtime/frontend/canvas-artifacts';
 import type { AffineEditorContainer } from '@affine/core/blocksuite/block-suite-editor';
 import { NotificationServiceImpl } from '@affine/core/blocksuite/view-extensions/editor-view/notification-service';
 import { useAIChatConfig } from '@affine/core/components/hooks/affine/use-ai-chat-config';
@@ -29,6 +30,7 @@ import {
 } from '@affine/core/modules/ai-button';
 import {
   EventSourceService,
+  FetchService,
   GraphQLService,
   ServerService,
   SubscriptionService,
@@ -78,6 +80,8 @@ export const EditorChatPanel = ({
   const framework = useFramework();
   const graphqlService = useService(GraphQLService);
   const eventSourceService = useService(EventSourceService);
+  const fetchService = useService(FetchService);
+  const canvasServer = useService(ServerService).server;
   const nbstoreService = useService(NbstoreService);
   const workbench = useService(WorkbenchService).workbench;
   const workspace = useService(WorkspaceService).workspace;
@@ -135,15 +139,21 @@ export const EditorChatPanel = ({
     const searchParams = new URLSearchParams(workbench.location$.value.search);
     return searchParams.get('sessionId') ?? undefined;
   });
+  const [continuationSessionId] = useState(
+    () =>
+      new URLSearchParams(workbench.location$.value.search).get(
+        'canvasSessionId'
+      ) ?? undefined
+  );
 
   useEffect(() => {
-    if (pendingSessionId) {
+    if (pendingSessionId || continuationSessionId) {
       workbench.activeView$.value.updateQueryString(
-        { sessionId: undefined },
+        { sessionId: undefined, canvasSessionId: undefined },
         { replace: true }
       );
     }
-  }, [pendingSessionId, workbench]);
+  }, [pendingSessionId, continuationSessionId, workbench]);
 
   const runtime = useMemo(() => {
     if (!doc || !workspaceId) return null;
@@ -154,10 +164,17 @@ export const EditorChatPanel = ({
         workspaceId,
         docId: doc.id,
         pendingSessionId,
+        continuationSessionId,
       },
       strategy: new DocAIChatSessionStrategy(),
     });
-  }, [doc, pendingSessionId, requestService, workspaceId]);
+  }, [
+    doc,
+    pendingSessionId,
+    continuationSessionId,
+    requestService,
+    workspaceId,
+  ]);
   const snapshot = useAIChatRuntime(runtime);
   const session =
     snapshot?.sessions.find(
@@ -173,6 +190,33 @@ export const EditorChatPanel = ({
           sessionId,
           workspaceId,
           docId: doc.id,
+          ...canvasArtifactClient(
+            fetchService.fetch,
+            canvasServer.serverMetadata.baseUrl,
+            workspaceId,
+            sessionId
+          ),
+          persist: async ({ docId, signal }) => {
+            // Called only after the operation and its journal marker exist in
+            // the document. waitForSynced first flushes the local updates.
+            await Promise.all(
+              [
+                ...new Set([workspace.id, 'db$docProperties', doc.id, docId]),
+              ].map(id => workspace.engine.doc.waitForSynced(id, signal))
+            );
+            return 'synced';
+          },
+          createDocument: async input => {
+            const { canvasDocumentFactory } =
+              await import('@affine/core/blocksuite/ai/runtime/canvas/new-document');
+            return canvasDocumentFactory(workspace, host)(input);
+          },
+          openDocument: ({ docId }) => {
+            workbench.open(
+              `/${encodeURIComponent(docId)}?mode=edgeless&canvasSessionId=${encodeURIComponent(sessionId)}`,
+              { at: 'active' }
+            );
+          },
         })
     );
     if (session?.sessionId) {
@@ -185,9 +229,13 @@ export const EditorChatPanel = ({
     doc.id,
     host,
     nbstoreService.realtime,
+    fetchService,
+    canvasServer,
     requestService,
     session?.sessionId,
     workspaceId,
+    workspace,
+    workbench,
   ]);
   const appSidebarConfig = useMemo<AppSidebarConfig>(() => {
     return {

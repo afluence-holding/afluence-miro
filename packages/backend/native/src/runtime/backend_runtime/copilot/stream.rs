@@ -1,4 +1,5 @@
 use std::{
+  cell::Cell,
   collections::HashMap,
   sync::{
     Arc, Mutex,
@@ -8,20 +9,23 @@ use std::{
   time::{Duration, Instant},
 };
 
+use base64::{Engine, engine::general_purpose::STANDARD};
 use llm_adapter::{
   backend::{BackendError, DefaultHttpClient},
-  core::CoreMessage,
+  core::{CoreContent, CoreMessage, CoreRole},
   router::ExecutableRequest,
 };
 use llm_runtime::{
-  AccumulatedToolCall, RuntimeRouteEvent, ToolCallbackRequest, ToolCallbackResponse, ToolExecutionResult,
-  ToolLoopEvent, dispatch_compiled_round, run_tool_loop,
+  AccumulatedToolCall, RuntimeRouteEvent, ToolCallbackRequest, ToolExecutionResult, ToolLoopEvent, ToolResultMessage,
+  append_tool_turns, dispatch_compiled_round,
 };
 use napi::{
   JsValue, Result, Status,
   bindgen_prelude::{CallbackContext, PromiseRaw, Unknown},
   threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
+use serde::Deserialize;
+use serde_json::Value;
 use zeroize::Zeroizing;
 
 use super::{BackendRuntime, COPILOT_REQUEST_TIMEOUT, RuntimeError, dispatch, to_napi_error};
@@ -45,6 +49,32 @@ pub(super) type PreparedCopilotExecution = (
 const STREAM_END: &str = "__AFFINE_COPILOT_STREAM_END__";
 const TOOL_CALLBACK_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 const TOOL_CALLBACK_POLL_INTERVAL: Duration = Duration::from_millis(100);
+const MAX_INLINE_TOOL_IMAGE_BYTES: usize = 512 * 1024;
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct InlineImagePart {
+  mime_type: String,
+  data: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct HostToolCallbackResponse {
+  call_id: String,
+  name: String,
+  args: Value,
+  raw_arguments_text: Option<String>,
+  argument_parse_error: Option<String>,
+  output: Value,
+  is_error: Option<bool>,
+  media: Option<Vec<InlineImagePart>>,
+}
+
+struct ToolExecutionWithMedia {
+  result: ToolExecutionResult,
+  media: Vec<InlineImagePart>,
+}
 
 #[napi_derive::napi]
 pub struct CopilotStreamHandle {
@@ -122,33 +152,77 @@ fn run_stream(
   aborted: &AtomicBool,
   deadline: Instant,
 ) -> std::result::Result<(), String> {
-  let result = run_tool_loop(
-    &mut messages,
-    max_steps,
-    |messages| {
+  // `llm_runtime::run_tool_loop` deliberately only knows JSON tool results.
+  // This host loop additionally keeps bounded image parts beside the result
+  // until the provider selected for this exact round is known.
+  let selected_route_supports_vision = Cell::new(false);
+  for step in 0..max_steps {
+    let outcome = {
+      selected_route_supports_vision.set(false);
       let mut route_events = Vec::new();
       let result = dispatch_compiled_round(
         &DefaultHttpClient::default(),
         &mut execution.plan,
-        messages,
+        &messages,
         || aborted.load(Ordering::Relaxed) || Instant::now() >= deadline,
         |event| emit_json(callback, event).map_err(transport_error),
         |event: RuntimeRouteEvent| route_events.push(event),
       );
       for event in route_events {
+        if let RuntimeRouteEvent::Selected { route_id } = &event {
+          selected_route_supports_vision.set(execution.supports_vision(route_id));
+        }
         let event = execution.project(event).map_err(|error| error.to_string())?;
         emit_json(callback, &event)?;
       }
-      result.map_err(|error| error.to_string())
-    },
-    |call: &AccumulatedToolCall| execute_tool(tool_callback, call, aborted, deadline),
-    |event: &ToolLoopEvent| emit_json(callback, event),
-    || "tool loop reached max steps".to_string(),
-  );
+      result.map_err(|error| error.to_string())?
+    };
+    if outcome.tool_calls.is_empty() {
+      if let Some(done) = outcome.final_done {
+        emit_json(callback, &done)?;
+      }
+      break;
+    }
+    if step == max_steps - 1 {
+      return Err("tool loop reached max steps".to_string());
+    }
+
+    let mut replay_results = Vec::with_capacity(outcome.tool_calls.len());
+    let mut images = Vec::new();
+    for call in &outcome.tool_calls {
+      let mut execution_result = execute_tool(tool_callback, call, aborted, deadline)?;
+      let delivered = append_inline_images_for_selected_route(
+        &mut images,
+        selected_route_supports_vision.get(),
+        &execution_result.media,
+      )?;
+      set_visual_delivery_marker(&mut execution_result.result.output, delivered);
+      let result = execution_result.result;
+      emit_json(
+        callback,
+        &ToolLoopEvent::ToolResult {
+          call_id: result.call_id.clone(),
+          name: result.name.clone(),
+          arguments: result.arguments.clone(),
+          arguments_text: result.arguments_text.clone(),
+          arguments_error: result.arguments_error.clone(),
+          output: result.output.clone(),
+          is_error: result.is_error,
+        },
+      )?;
+      replay_results.push(ToolResultMessage {
+        call_id: result.call_id,
+        output: result.output,
+        is_error: result.is_error,
+      });
+    }
+    append_tool_turns(&mut messages, &outcome.tool_calls, &replay_results);
+    messages.append(&mut images);
+  }
   if !aborted.load(Ordering::Relaxed) && Instant::now() >= deadline {
     Err("copilot stream deadline exceeded".to_string())
   } else {
-    result
+    Ok(())
   }
 }
 
@@ -169,12 +243,70 @@ fn transport_error(message: String) -> BackendError {
   BackendError::Transport { message }
 }
 
+fn append_inline_images(images: &mut Vec<CoreMessage>, parts: &[InlineImagePart]) -> std::result::Result<bool, String> {
+  if parts.is_empty() {
+    return Ok(false);
+  }
+  for part in parts {
+    if !matches!(part.mime_type.as_str(), "image/png" | "image/jpeg" | "image/webp") {
+      return Err("unsupported inline tool image MIME type".to_string());
+    }
+    let bytes = STANDARD
+      .decode(&part.data)
+      .map_err(|_| "invalid inline tool image encoding".to_string())?;
+    if bytes.is_empty() || bytes.len() > MAX_INLINE_TOOL_IMAGE_BYTES {
+      return Err("inline tool image exceeds the size limit".to_string());
+    }
+    images.push(CoreMessage {
+      role: CoreRole::User,
+      content: vec![
+        CoreContent::Text {
+          text: "Image returned by canvas_render; inspect these pixels before making any visual claim.".to_string(),
+        },
+        CoreContent::Image {
+          source: serde_json::json!({
+            "kind": "bytes",
+            "data": part.data,
+            "mimeType": part.mime_type,
+          }),
+        },
+      ],
+    });
+  }
+  Ok(true)
+}
+
+fn append_inline_images_for_selected_route(
+  images: &mut Vec<CoreMessage>,
+  supports_vision: bool,
+  parts: &[InlineImagePart],
+) -> std::result::Result<bool, String> {
+  if !supports_vision {
+    return Ok(false);
+  }
+  append_inline_images(images, parts)
+}
+
+fn set_visual_delivery_marker(output: &mut Value, delivered: bool) {
+  let Some(data) = output
+    .as_object_mut()
+    .filter(|output| output.get("ok") == Some(&Value::Bool(true)))
+    .and_then(|output| output.get_mut("data"))
+    .and_then(Value::as_object_mut)
+  else {
+    return;
+  };
+  if data.get("artifact").is_some() {
+    data.insert("visualVerificationDeliveredToModel".to_string(), Value::Bool(delivered));
+  }
+}
+
 fn execute_tool(
   callback: &ThreadsafeFunction<String, PromiseRaw<'static, String>>,
   call: &AccumulatedToolCall,
   aborted: &AtomicBool,
   stream_deadline: Instant,
-) -> std::result::Result<ToolExecutionResult, String> {
+) -> std::result::Result<ToolExecutionWithMedia, String> {
   let request = serde_json::to_string(&ToolCallbackRequest {
     call_id: call.id.clone(),
     name: call.name.clone(),
@@ -197,7 +329,7 @@ fn execute_tool(
           match promise.then(move |ctx| {
             send_tool_result(
               &success_sender,
-              serde_json::from_str::<ToolCallbackResponse>(&ctx.value).map_err(|error| error.to_string()),
+              serde_json::from_str::<HostToolCallbackResponse>(&ctx.value).map_err(|error| error.to_string()),
             );
             Ok(())
           }) {
@@ -241,21 +373,108 @@ fn execute_tool(
   if !response.args.is_object() {
     return Err("copilot tool callback args must be an object".to_string());
   }
-  Ok(ToolExecutionResult {
-    call_id: response.call_id,
-    name: response.name,
-    arguments: response.args,
-    arguments_text: response.raw_arguments_text,
-    arguments_error: response.argument_parse_error,
-    output: response.output,
-    is_error: response.is_error,
+  Ok(ToolExecutionWithMedia {
+    result: ToolExecutionResult {
+      call_id: response.call_id,
+      name: response.name,
+      arguments: response.args,
+      arguments_text: response.raw_arguments_text,
+      arguments_error: response.argument_parse_error,
+      output: response.output,
+      is_error: response.is_error,
+    },
+    media: response.media.unwrap_or_default(),
   })
 }
 
-type ToolResultSender = Arc<Mutex<Option<mpsc::SyncSender<std::result::Result<ToolCallbackResponse, String>>>>>;
+type ToolResultSender = Arc<Mutex<Option<mpsc::SyncSender<std::result::Result<HostToolCallbackResponse, String>>>>>;
 
-fn send_tool_result(sender: &ToolResultSender, result: std::result::Result<ToolCallbackResponse, String>) {
+fn send_tool_result(sender: &ToolResultSender, result: std::result::Result<HostToolCallbackResponse, String>) {
   if let Some(sender) = sender.lock().expect("tool callback sender poisoned").take() {
     let _ = sender.send(result);
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use std::collections::HashMap;
+
+  use base64::{Engine, engine::general_purpose::STANDARD};
+  use llm_adapter::core::{CoreContent, CoreRole};
+  use serde_json::json;
+
+  use super::{InlineImagePart, append_inline_images_for_selected_route, set_visual_delivery_marker};
+  use crate::runtime::backend_runtime::copilot::dispatch::{
+    capability_supports_inline_canvas_image, selected_route_supports_vision,
+  };
+  use llm_adapter::capability::{AttachmentKind, AttachmentSource, DeclaredModelCapability, ModelInput, ModelOutput};
+
+  fn capability(sources: Vec<AttachmentSource>) -> DeclaredModelCapability {
+    DeclaredModelCapability {
+      input: vec![ModelInput::Text, ModelInput::Image],
+      output: vec![ModelOutput::Text],
+      features: vec![],
+      attachment_kinds: vec![AttachmentKind::Image],
+      attachment_sources: sources,
+    }
+  }
+
+  #[test]
+  fn canvas_media_requires_the_selected_model_to_accept_image_bytes() {
+    assert!(!capability_supports_inline_canvas_image(&capability(vec![
+      AttachmentSource::Url
+    ])));
+    assert!(!capability_supports_inline_canvas_image(&capability(vec![
+      AttachmentSource::Data
+    ])));
+    assert!(capability_supports_inline_canvas_image(&capability(vec![
+      AttachmentSource::Bytes
+    ])));
+  }
+
+  #[test]
+  fn selected_fallback_route_controls_canvas_media_delivery() {
+    let routes = HashMap::from([("first".to_string(), false), ("fallback".to_string(), true)]);
+    let image = InlineImagePart {
+      mime_type: "image/png".to_string(),
+      data: STANDARD.encode(b"canvas pixels"),
+    };
+    let mut messages = Vec::new();
+
+    let first_delivered = append_inline_images_for_selected_route(
+      &mut messages,
+      selected_route_supports_vision(&routes, "first"),
+      &[image],
+    )
+    .expect("a no-vision route must not parse or send media");
+    assert!(!first_delivered);
+    assert!(messages.is_empty());
+
+    let fallback_delivered = append_inline_images_for_selected_route(
+      &mut messages,
+      selected_route_supports_vision(&routes, "fallback"),
+      &[InlineImagePart {
+        mime_type: "image/png".to_string(),
+        data: STANDARD.encode(b"canvas pixels"),
+      }],
+    )
+    .expect("the selected vision fallback accepts bounded bytes");
+    assert!(fallback_delivered);
+    assert!(matches!(messages.as_slice(), [message]
+      if message.role == CoreRole::User
+        && matches!(message.content.as_slice(), [CoreContent::Text { .. }, CoreContent::Image { source }]
+          if source["kind"] == "bytes" && source["mimeType"] == "image/png")));
+  }
+
+  #[test]
+  fn visual_delivery_marker_is_only_true_after_a_native_image_part() {
+    let mut output = json!({
+      "ok": true,
+      "data": { "artifact": { "mimeType": "image/png" } },
+    });
+    set_visual_delivery_marker(&mut output, false);
+    assert_eq!(output["data"]["visualVerificationDeliveredToModel"], false);
+    set_visual_delivery_marker(&mut output, true);
+    assert_eq!(output["data"]["visualVerificationDeliveredToModel"], true);
   }
 }

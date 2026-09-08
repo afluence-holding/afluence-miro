@@ -1,0 +1,11 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.91s
+     Running unittests src/lib.rs (target/debug/deps/affine_server_native-f6a811ebf4448c35)
+
+running 4 tests
+test runtime::backend_runtime::artifact::tests::canvas_interchange_artifacts_skip_generic_text_indexing ... ok
+test runtime::backend_runtime::copilot::stream::tests::canvas_media_requires_the_selected_model_to_accept_image_bytes ... ok
+test runtime::backend_runtime::copilot::stream::tests::selected_fallback_route_controls_canvas_media_delivery ... ok
+test llm::core::prompt::tests::authorized_canvas_handles_reach_the_rendered_model_prompt ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 193 filtered out; finished in 0.04s
+

@@ -2,7 +2,7 @@ import { toast } from '@affine/component';
 
 import type { ChatChip } from './type';
 
-const MAX_ATTACHMENT_SIZE = 50 * 1024 * 1024;
+const MAX_ATTACHMENT_SIZE = 64 * 1024 * 1024;
 
 export interface AttachmentHandlers {
   addImages: (images: File[]) => void;
@@ -24,7 +24,7 @@ export async function addFilesToChat(
   await Promise.all(
     others.map(async file => {
       if (file.size > MAX_ATTACHMENT_SIZE) {
-        toast(`${file.name} is too large, please upload a file less than 50MB`);
+        toast(`${file.name} is too large, please upload a file less than 64MB`);
         return;
       }
       await addChip({

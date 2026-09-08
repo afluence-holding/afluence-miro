@@ -1,0 +1,9 @@
+
+ RUN  v4.1.10 /Users/santander/Documents/ChatGPT/Miro/afluence-miro
+
+
+ Test Files  13 passed (13)
+      Tests  75 passed (75)
+   Start at  01:50:46
+   Duration  7.14s (transform 16.34s, setup 7.24s, import 19.76s, tests 411ms, environment 1.43s)
+

@@ -1,6 +1,7 @@
 import {
   ByokAttachmentKind,
   ByokAttachmentSource,
+  ByokCustomEndpointMode,
   ByokModelFeature,
   ByokModelInput,
   ByokModelOutput,
@@ -19,7 +20,20 @@ import type { ByokSettings } from './types';
 describe('BYOK model capabilities', () => {
   test('defaults OpenAI profiles to the current Afluence model set', () => {
     const settings = {
+      workspaceId: 'workspace-1',
+      entitled: true,
+      serverEntitled: true,
+      localEntitled: false,
+      policy: {
+        enabled: true,
+        allowedProviders: [ByokProvider.openai],
+        customEndpointMode: ByokCustomEndpointMode.enabled,
+        privateEndpointSupported: false,
+      },
+      keys: [],
+      localStorageSupported: false,
       catalog: {
+        version: 'catalog-1',
         providers: [
           {
             provider: ByokProvider.openai,
@@ -39,15 +53,11 @@ describe('BYOK model capabilities', () => {
           },
         ],
       },
-    } as ByokSettings;
+    } satisfies ByokSettings;
 
     expect(
       defaultModels(settings, ByokProvider.openai).map(model => model.modelId)
-    ).toEqual([
-      'gpt-5.6-luna',
-      'gpt-image-2',
-      'text-embedding-3-small',
-    ]);
+    ).toEqual(['gpt-5.6-luna', 'gpt-image-2', 'text-embedding-3-small']);
   });
 
   test('maps richer catalog capabilities by minimum requirements', () => {

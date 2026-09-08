@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 
 import {
   CopilotMessageNotFound,
@@ -18,6 +18,7 @@ import {
 import type { PromptParams } from '../../providers/types';
 import { ChatSession, ChatSessionService } from '../../session';
 import { ChatQuerySchema } from '../../types';
+import { CanvasArtifactHandleService } from '../canvas-artifact-handles';
 import {
   ClientScopeSelectorSchema,
   type ScopeSelector,
@@ -48,7 +49,8 @@ export class ConversationHost {
     private readonly mutex: Mutex,
     private readonly policy: ConversationPolicy,
     private readonly runtime: BackendRuntimeProvider,
-    private readonly attachmentAdmission: AttachmentAdmissionHost
+    private readonly attachmentAdmission: AttachmentAdmissionHost,
+    private readonly canvasArtifacts: CanvasArtifactHandleService
   ) {}
 
   private selectors(
@@ -150,8 +152,48 @@ export class ConversationHost {
       }
       throw error;
     }
+    let canvasArtifacts: Awaited<
+      ReturnType<CanvasArtifactHandleService['issueImportHandle']>
+    >[] = [];
+    let canvasArtifactsUnavailable = false;
+    try {
+      canvasArtifacts = await Promise.all(
+        artifacts.map(
+          async artifact =>
+            await this.canvasArtifacts.issueImportHandle({
+              userId: session.config.userId,
+              workspaceId: session.config.workspaceId,
+              sessionId: session.config.sessionId,
+              artifactId: artifact.artifactId,
+            })
+        )
+      );
+    } catch (error) {
+      // Handles intentionally require a configured durable signing key. Their
+      // absence must not reject an otherwise valid chat attachment.
+      if (!(error instanceof ServiceUnavailableException)) throw error;
+      canvasArtifactsUnavailable = true;
+    }
     const scopeSnapshot = TurnScopeSnapshotSchema.parse(compiledScope);
-    return { artifacts, focus, metadata, scopeSnapshot };
+    return {
+      artifacts,
+      focus,
+      metadata: {
+        ...metadata,
+        canvasArtifacts: canvasArtifacts.map(
+          ({ handle, mimeType, fileName, size }) => ({
+            handle,
+            mimeType,
+            fileName,
+            size,
+          })
+        ),
+        ...(canvasArtifactsUnavailable
+          ? { canvasArtifactsUnavailable: true }
+          : {}),
+      },
+      scopeSnapshot,
+    };
   }
 
   private async loadAcceptedTurn(

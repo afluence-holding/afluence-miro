@@ -91,6 +91,7 @@ export type SerializedConnectorElement = SerializedElement & {
 
 export type ConnectorElementProps = BaseElementProps & {
   mode: ConnectorMode;
+  routing?: 'native' | 'avoid-obstacles';
   stroke: Color;
   strokeWidth: number;
   strokeStyle: StrokeStyle;
@@ -477,6 +478,10 @@ export class ConnectorElementModel extends GfxPrimitiveElementModel<ConnectorEle
 
   @field()
   accessor mode: ConnectorMode = DEFAULT_CONNECTOR_MODE;
+
+  /** Persistent route policy; the derived path remains local to the renderer. */
+  @field()
+  accessor routing: 'native' | 'avoid-obstacles' = 'native';
 
   @derive((path: PointLocation[], instance) => {
     const { x, y } = instance;

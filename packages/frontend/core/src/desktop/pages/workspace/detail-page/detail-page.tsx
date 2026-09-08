@@ -342,7 +342,11 @@ const DetailPageImpl = memo(function DetailPageImpl() {
           icon={<AiIcon />}
           unmountOnInactive={false}
         >
-          <EditorChatPanel editor={editorContainer} doc={doc.blockSuiteDoc} />
+          <EditorChatPanel
+            key={doc.id}
+            editor={editorContainer}
+            doc={doc.blockSuiteDoc}
+          />
         </ViewSidebarTab>
       )}
 

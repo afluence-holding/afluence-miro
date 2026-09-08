@@ -6,7 +6,7 @@ use std::{
 use gcp_auth::{CustomServiceAccount, TokenProvider};
 use llm_adapter::{
   backend::{BackendError, DefaultHttpClient},
-  capability::{AttachmentKind, AttachmentSource},
+  capability::{AttachmentKind, AttachmentSource, ModelInput},
   core::{CoreContent, ImageInput, ImageRequest},
   router::{ExecutablePreparedRoute, ExecutableProtocol, ExecutableRequest, ExecutableResponse},
   target::{
@@ -65,12 +65,32 @@ pub(super) struct CopilotExecutionResult {
 pub(super) struct CompiledExecution {
   pub(super) plan: CompiledPlan,
   identities: HashMap<String, RouteIdentity>,
+  vision_by_route: HashMap<String, bool>,
 }
 
 impl CompiledExecution {
   pub(super) fn project(&self, event: RuntimeRouteEvent) -> RuntimeResult<ProductEvent> {
     project_event(event, &self.identities)
   }
+
+  pub(super) fn supports_vision(&self, route_id: &str) -> bool {
+    selected_route_supports_vision(&self.vision_by_route, route_id)
+  }
+}
+
+pub(super) fn selected_route_supports_vision(vision_by_route: &HashMap<String, bool>, route_id: &str) -> bool {
+  vision_by_route.get(route_id).copied().unwrap_or(false)
+}
+
+/// Canvas tool renders are replayed as `CoreContent::Image { kind: "bytes" }`.
+/// A model that merely declares image input but only accepts URLs or data handles
+/// must not be told it inspected those bytes.
+pub(super) fn capability_supports_inline_canvas_image(
+  capability: &llm_adapter::capability::DeclaredModelCapability,
+) -> bool {
+  capability.input.contains(&ModelInput::Image)
+    && capability.attachment_kinds.contains(&AttachmentKind::Image)
+    && capability.attachment_sources.contains(&AttachmentSource::Bytes)
 }
 
 pub(super) fn request_and_slot(
@@ -158,6 +178,7 @@ pub(super) fn compile_execution(
   let key = CredentialEnvelopeKey::derive(config.private_key.as_bytes())
     .map_err(|_| RuntimeError::invalid_state("credential_unavailable"))?;
   let mut identities = HashMap::new();
+  let mut vision_by_route = HashMap::new();
   let mut routes = Vec::with_capacity(candidates.len());
   for candidate in candidates {
     let profile = profiles
@@ -180,6 +201,10 @@ pub(super) fn compile_execution(
     })
     .map_err(|error| RuntimeError::invalid_state(error.to_string()))?;
     let route_id = Uuid::new_v4().to_string();
+    vision_by_route.insert(
+      route_id.clone(),
+      model.capabilities.iter().any(capability_supports_inline_canvas_image),
+    );
     identities.insert(
       route_id.clone(),
       RouteIdentity {
@@ -201,6 +226,7 @@ pub(super) fn compile_execution(
   Ok(CompiledExecution {
     plan: CompiledPlan::new(routes).map_err(|error| RuntimeError::invalid_state(error.to_string()))?,
     identities,
+    vision_by_route,
   })
 }
 

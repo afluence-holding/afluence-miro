@@ -90,6 +90,16 @@ export const PromptToolsSchema = z
     'frontendReadSelection',
     'frontendReadNodes',
     'frontendSnapshotDocument',
+    'canvasCapabilities',
+    'canvasRead',
+    'canvasValidate',
+    'canvasLayout',
+    'canvasRender',
+    'canvasApply',
+    'canvasOperation',
+    'canvasFocus',
+    'canvasImport',
+    'canvasExport',
     // work with exa/model internal tools
     'webSearch',
     // artifact tools

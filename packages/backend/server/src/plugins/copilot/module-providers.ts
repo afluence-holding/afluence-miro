@@ -25,6 +25,7 @@ import {
   DocumentRetrievalService,
 } from './retrieval/document';
 import { ActionRuntimeBridge } from './runtime/action-runtime-bridge';
+import { CanvasArtifactHandleService } from './runtime/canvas-artifact-handles';
 import { CapabilityRuntime } from './runtime/capability-runtime';
 import { CopilotRuntimeEventConsumer } from './runtime/copilot-runtime-event-consumer';
 import { ActionStreamHost } from './runtime/hosts/action-stream-host';
@@ -76,6 +77,7 @@ export const COPILOT_RUNTIME_PROVIDERS = [
   PromptRuntime,
   ConversationHost,
   CapabilityRuntime,
+  CanvasArtifactHandleService,
   { provide: EMBEDDING_RERANK_RUNTIME, useExisting: CapabilityRuntime },
   ToolRuntime,
   AttachmentMaterializer,

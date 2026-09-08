@@ -22,15 +22,30 @@ import { css, html, nothing } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 
+import { requestCanvasAction } from '../../runtime/frontend/canvas-actions';
 import type { AffineAIPanelState } from '../../widgets/ai-panel/type';
 import type { DocDisplayConfig } from '../ai-chat-chips';
 import type { StreamObject } from '../ai-chat-messages';
+import type { CanvasOperationActionCallback } from '../ai-tools/canvas-operation-card';
 
 const frontendReadTools = new Set([
   'frontend_get_editor_state',
   'frontend_read_selection',
   'frontend_read_nodes',
   'frontend_snapshot_document',
+]);
+
+const canvasTools = new Set([
+  'canvas_capabilities',
+  'canvas_read',
+  'canvas_validate',
+  'canvas_layout',
+  'canvas_render',
+  'canvas_apply',
+  'canvas_operation',
+  'canvas_focus',
+  'canvas_import',
+  'canvas_export',
 ]);
 
 function object(value: unknown): Record<string, unknown> | undefined {
@@ -294,6 +309,10 @@ export class ChatContentStreamObjects extends WithDisposable(
   @property({ attribute: false })
   accessor onOpenDoc!: (docId: string, sessionId?: string) => void;
 
+  @property({ attribute: false })
+  accessor onCanvasAction: CanvasOperationActionCallback | undefined =
+    requestCanvasAction;
+
   @state()
   private accessor toolGroupOverrides = new Map<string, boolean>();
 
@@ -424,6 +443,13 @@ export class ChatContentStreamObjects extends WithDisposable(
     ></tool-result-card>`;
   }
 
+  private renderCanvasOperation(streamObject: ToolStreamObject) {
+    return html`<canvas-operation-card
+      .data=${streamObject}
+      .onCanvasAction=${this.onCanvasAction}
+    ></canvas-operation-card>`;
+  }
+
   private renderToolCall(streamObject: StreamObject) {
     if (streamObject.type !== 'tool-call') {
       return nothing;
@@ -434,6 +460,9 @@ export class ChatContentStreamObjects extends WithDisposable(
     }
     if (streamObject.toolName === 'doc_canvas_read') {
       return this.renderCanvasRead(streamObject);
+    }
+    if (canvasTools.has(streamObject.toolName)) {
+      return this.renderCanvasOperation(streamObject);
     }
 
     switch (streamObject.toolName) {
@@ -536,6 +565,9 @@ export class ChatContentStreamObjects extends WithDisposable(
     }
     if (streamObject.toolName === 'doc_canvas_read') {
       return this.renderCanvasRead(streamObject);
+    }
+    if (canvasTools.has(streamObject.toolName)) {
+      return this.renderCanvasOperation(streamObject);
     }
 
     switch (streamObject.toolName) {

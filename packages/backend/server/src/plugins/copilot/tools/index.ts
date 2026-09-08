@@ -1,4 +1,5 @@
 export * from './artifact';
+export * from './canvas';
 export * from './code-artifact';
 export * from './conversation-summary';
 export * from './doc-canvas-read';

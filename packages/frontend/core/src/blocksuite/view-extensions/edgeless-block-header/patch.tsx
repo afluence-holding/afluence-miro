@@ -8,14 +8,12 @@ import {
   EditPropsStore,
 } from '@blocksuite/affine/shared/services';
 import { GfxControllerIdentifier } from '@blocksuite/affine/std/gfx';
-import type { FrameworkProvider } from '@toeverything/infra';
 import { html } from 'lit';
 
 import { EdgelessEmbedSyncedDocHeader } from './edgeless-embed-synced-doc-header';
 import { EdgelessNoteHeader } from './edgeless-note-header';
 
 export function patchForEdgelessNoteConfig(
-  framework: FrameworkProvider,
   reactToLit: ReactToLit,
   insidePeekView: boolean
 ) {

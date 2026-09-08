@@ -42,6 +42,13 @@ export interface AIChatSessionStrategy {
 export class DocAIChatSessionStrategy implements AIChatSessionStrategy {
   async loadInitialSession(scope: AIChatScope, request: AIRequestService) {
     if (scope.kind !== 'doc') return null;
+    if (scope.continuationSessionId) {
+      const session = await request.getSession(
+        scope.workspaceId,
+        scope.continuationSessionId
+      );
+      return session?.workspaceId === scope.workspaceId ? session : null;
+    }
     const pinned = await request.getSessions(scope.workspaceId, undefined, {
       pinned: true,
       limit: 1,
@@ -97,7 +104,11 @@ export class DocAIChatSessionStrategy implements AIChatSessionStrategy {
 
   canOpenAsTab(session: CopilotChatHistoryFragment, scope: AIChatScope) {
     return (
-      scope.kind === 'doc' && (!session.docId || session.docId === scope.docId)
+      scope.kind === 'doc' &&
+      session.workspaceId === scope.workspaceId &&
+      (!session.docId ||
+        session.docId === scope.docId ||
+        scope.continuationSessionId === session.sessionId)
     );
   }
 

@@ -5,9 +5,13 @@
   "private": true,
   "sideEffects": false,
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./canvas": "./src/canvas/index.ts"
   },
   "dependencies": {
     "@affine/graphql": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.8"
   }
 }

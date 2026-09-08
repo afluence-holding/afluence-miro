@@ -245,65 +245,74 @@ export class DataViewBlockComponent extends CaptionedBlockComponent<DataViewBloc
 
     this.setAttribute(RANGE_SYNC_EXCLUDE_ATTR, 'true');
   }
-  private readonly dataViewRootLogic = new DataViewRootUILogic({
-    virtualPadding$: signal(0),
-    bindHotkey: this._bindHotkey,
-    handleEvent: this._handleEvent,
-    selection$: this.selection$,
-    setSelection: this.setSelection,
-    dataSource: this.dataSource,
-    headerWidget: this.headerWidget,
-    clipboard: this.std.clipboard,
-    dnd: this.std.dnd,
-    notification: {
-      toast: message => {
-        const notification = this.std.getOptional(NotificationProvider);
-        if (notification) {
-          notification.toast(message);
-        } else {
-          toast(this.host, message);
-        }
+  private _dataViewRootLogic?: DataViewRootUILogic;
+
+  /**
+   * Lit creates the block element before the view layer injects `std`.
+   * Constructing this object as a field initializer therefore read `host`
+   * before it existed for AI-created blocks. Resolve it on first render.
+   */
+  private get dataViewRootLogic() {
+    return (this._dataViewRootLogic ??= new DataViewRootUILogic({
+      virtualPadding$: signal(0),
+      bindHotkey: this._bindHotkey,
+      handleEvent: this._handleEvent,
+      selection$: this.selection$,
+      setSelection: this.setSelection,
+      dataSource: this.dataSource,
+      headerWidget: this.headerWidget,
+      clipboard: this.std.clipboard,
+      dnd: this.std.dnd,
+      notification: {
+        toast: message => {
+          const notification = this.std.getOptional(NotificationProvider);
+          if (notification) {
+            notification.toast(message);
+          } else {
+            toast(this.host, message);
+          }
+        },
       },
-    },
-    eventTrace: (key, params) => {
-      const telemetryService = this.std.getOptional(TelemetryProvider);
-      telemetryService?.track(key, {
-        ...(params as TelemetryEventMap[typeof key]),
-        blockId: this.blockId,
-      });
-    },
-    detailPanelConfig: {
-      openDetailPanel: (target, data) => {
-        const peekViewService = this.std.getOptional(PeekViewProvider);
-        if (peekViewService) {
-          const template = createRecordDetail({
-            ...data,
-            openDoc: () => {},
-            detail: {
-              header: uniMap(
-                createUniComponentFromWebComponent(BlockRenderer),
-                props => ({
-                  ...props,
-                  host: this.host,
-                })
-              ),
-              note: uniMap(
-                createUniComponentFromWebComponent(NoteRenderer),
-                props => ({
-                  ...props,
-                  model: this.model,
-                  host: this.host,
-                })
-              ),
-            },
-          });
-          return peekViewService.peek({ target, template });
-        } else {
-          return Promise.resolve();
-        }
+      eventTrace: (key, params) => {
+        const telemetryService = this.std.getOptional(TelemetryProvider);
+        telemetryService?.track(key, {
+          ...(params as TelemetryEventMap[typeof key]),
+          blockId: this.blockId,
+        });
       },
-    },
-  });
+      detailPanelConfig: {
+        openDetailPanel: (target, data) => {
+          const peekViewService = this.std.getOptional(PeekViewProvider);
+          if (peekViewService) {
+            const template = createRecordDetail({
+              ...data,
+              openDoc: () => {},
+              detail: {
+                header: uniMap(
+                  createUniComponentFromWebComponent(BlockRenderer),
+                  props => ({
+                    ...props,
+                    host: this.host,
+                  })
+                ),
+                note: uniMap(
+                  createUniComponentFromWebComponent(NoteRenderer),
+                  props => ({
+                    ...props,
+                    model: this.model,
+                    host: this.host,
+                  })
+                ),
+              },
+            });
+            return peekViewService.peek({ target, template });
+          } else {
+            return Promise.resolve();
+          }
+        },
+      },
+    }));
+  }
   override renderBlock() {
     const widgets = html`${repeat(
       Object.entries(this.widgets),

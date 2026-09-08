@@ -1,5 +1,6 @@
 import '../../plugins/copilot/runtime/capability-runtime';
 
+import { ServiceUnavailableException } from '@nestjs/common';
 import ava from 'ava';
 
 import { CopilotMessageNotFound, type Mutex } from '../../base';
@@ -15,7 +16,12 @@ import {
 const test = ava;
 
 function fixture(
-  options: { failFirstAcceptedWrite?: boolean; failFirstAppend?: boolean } = {}
+  options: {
+    failFirstAcceptedWrite?: boolean;
+    failFirstAppend?: boolean;
+    attachment?: boolean;
+    canvasHandlesUnavailable?: boolean;
+  } = {}
 ) {
   const sessionId = 'session-1';
   const token = 'submission-1';
@@ -28,7 +34,15 @@ function fixture(
         id: token,
         sessionId,
         content: 'hello',
-        attachments: [],
+        attachments: options.attachment
+          ? [
+              {
+                mimeType: 'application/x-freemind',
+                fileName: 'map.mm',
+                data: Buffer.from('<map/>').toString('base64'),
+              },
+            ]
+          : [],
         params: {
           tone: 'brief',
           scopeSelectors: [{ kind: 'document', id: 'doc-2' }],
@@ -101,9 +115,10 @@ function fixture(
     hasQuota: async () => quota,
   } as unknown as ConversationPolicy;
   const runtime = {
-    putWorkspaceArtifact: async () => {
-      throw new Error('unexpected attachment');
-    },
+    putWorkspaceArtifact: async () => ({
+      id: 'artifact-1',
+      canonicalMediaType: 'application/x-freemind',
+    }),
     compileTurnScope: async (input: {
       selectors: unknown[];
       preferredSourceIds?: string[];
@@ -123,7 +138,20 @@ function fixture(
     }),
   };
   const attachmentAdmission = {
-    admitPromptAttachments: async () => [],
+    admitPromptAttachments: async (attachments: unknown[]) => attachments,
+  };
+  const canvasArtifacts = {
+    issueImportHandle: async () => {
+      if (options.canvasHandlesUnavailable) {
+        throw new ServiceUnavailableException('canvas handles unavailable');
+      }
+      return {
+        handle: 'canvas-artifact-1',
+        mimeType: 'application/x-freemind',
+        fileName: 'map.mm',
+        size: 6,
+      };
+    },
   };
 
   return {
@@ -133,7 +161,8 @@ function fixture(
       mutex,
       policy,
       runtime as never,
-      attachmentAdmission as never
+      attachmentAdmission as never,
+      canvasArtifacts as never
     ),
     sessionId,
     token,
@@ -229,4 +258,20 @@ test('compat submission cannot be consumed by another session', async t => {
     { instanceOf: CopilotMessageNotFound }
   );
   t.is(other.appendCount(), 0);
+});
+
+test('attachment turn stays durable when canvas handles need an unavailable signing key', async t => {
+  const state = fixture({ attachment: true, canvasHandlesUnavailable: true });
+
+  const prepared = await state.host.prepareTurn('user-1', state.sessionId, {
+    messageId: state.token,
+  });
+
+  t.is(prepared.latestTurn?.content, 'hello');
+  t.deepEqual(prepared.latestTurn?.metadata, {
+    tone: 'brief',
+    canvasArtifacts: [],
+    canvasArtifactsUnavailable: true,
+  });
+  t.is(state.appendCount(), 1);
 });

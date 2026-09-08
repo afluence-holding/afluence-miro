@@ -24,7 +24,6 @@ export interface NotFoundPageProps {
 }
 export const NoPermissionOrNotFound = ({
   user,
-  onBack,
   onSignOut,
   signInComponent,
 }: NotFoundPageProps) => {
@@ -66,11 +65,7 @@ export const NoPermissionOrNotFound = ({
   );
 };
 
-export const NotFoundPage = ({
-  user,
-  onBack,
-  onSignOut,
-}: NotFoundPageProps) => {
+export const NotFoundPage = ({ user, onSignOut }: NotFoundPageProps) => {
   const t = useI18n();
 
   return (

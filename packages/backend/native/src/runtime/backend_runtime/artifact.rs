@@ -11,7 +11,7 @@ use crate::runtime::object_storage::{
   types::{ObjectKey, ObjectLocator, ObjectPutMetadata, StorageScope, WorkspaceBlobKey},
 };
 
-const MAX_ARTIFACT_BYTES: usize = 50 * 1024 * 1024;
+const MAX_ARTIFACT_BYTES: usize = 64 * 1024 * 1024;
 
 pub(super) struct ArtifactService {
   pool: PgPool,
@@ -94,7 +94,9 @@ impl ArtifactService {
         .await?;
     }
     let artifact = self.get(&input.workspace_id, &content_hash).await?;
-    register_artifact_source(&self.pool, &artifact).await?;
+    if should_index_artifact(&artifact) {
+      register_artifact_source(&self.pool, &artifact).await?;
+    }
     Ok(artifact)
   }
 
@@ -147,7 +149,9 @@ impl ArtifactService {
         .await?;
     }
     let artifact = self.get(&input.workspace_id, &content_hash).await?;
-    register_artifact_source(&self.pool, &artifact).await?;
+    if should_index_artifact(&artifact) {
+      register_artifact_source(&self.pool, &artifact).await?;
+    }
     Ok(artifact)
   }
 
@@ -363,6 +367,19 @@ fn validate_body(body: &[u8]) -> RuntimeResult<()> {
   Ok(())
 }
 
+/// Binary canvas interchange stays as an authorized artifact handle. It is not
+/// a document for the generic text extractor or embedding worker to parse.
+fn should_index_artifact(artifact: &types::RuntimeWorkspaceArtifact) -> bool {
+  !matches!(
+    artifact.canonical_media_type.as_str(),
+    "application/vnd.affine.canvas+zip"
+      | "application/vnd.excalidraw+json"
+      | "application/vnd.freemind"
+      | "text/x-opml"
+      | "text/vnd.mermaid"
+  )
+}
+
 fn validate_library_display_name(library_owned: bool, display_name: Option<&str>) -> RuntimeResult<()> {
   if library_owned && display_name.is_none_or(|name| name.trim().is_empty()) {
     return Err(RuntimeError::invalid_input("artifact_library_display_name_required"));
@@ -404,5 +421,23 @@ mod tests {
     assert_eq!(canonical_media_type(" Text/Plain; charset=utf-8 "), "text/plain");
     assert_eq!(hash(b"same"), hash(b"same"));
     assert_ne!(hash(b"same"), hash(b"different"));
+  }
+
+  #[test]
+  fn canvas_interchange_artifacts_skip_generic_text_indexing() {
+    let canvas = types::RuntimeWorkspaceArtifact {
+      id: "artifact".to_string(),
+      workspace_id: "workspace".to_string(),
+      content_hash: "hash".to_string(),
+      display_name: None,
+      file_name: Some("canvas.bs.zip".to_string()),
+      canonical_media_type: "application/vnd.affine.canvas+zip".to_string(),
+      size: 4,
+      storage_scope: "copilot".to_string(),
+      storage_key: "artifacts/workspace/hash".to_string(),
+      status: "ready".to_string(),
+      library_owned: false,
+    };
+    assert!(!should_index_artifact(&canvas));
   }
 }

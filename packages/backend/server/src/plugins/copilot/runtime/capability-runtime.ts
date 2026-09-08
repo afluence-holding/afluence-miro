@@ -36,6 +36,7 @@ import {
   type PromptMessage,
   type StreamObject,
 } from '../providers/types';
+import { normalizeCanvasRenderToolResponse } from '../tools/canvas-media';
 import {
   buildToolContracts,
   type RequiredStructuredOutputContract,
@@ -217,14 +218,13 @@ export class CapabilityRuntime {
       },
       async requestJson => {
         const toolRequest = JSON.parse(requestJson) as LlmToolCallbackRequest;
-        return JSON.stringify(
-          await executeToolCall(toolSet, toolRequest, {
-            signal: options.signal,
-            messages,
-            runId,
-            toolCallId: toolRequest.callId,
-          })
-        );
+        const result = await executeToolCall(toolSet, toolRequest, {
+          signal: options.signal,
+          messages,
+          runId,
+          toolCallId: toolRequest.callId,
+        });
+        return JSON.stringify(normalizeCanvasRenderToolResponse(result));
       },
       { maxSteps: 20, signal: options.signal }
     );

@@ -250,7 +250,20 @@ test('MCP credentials remain endpoint-bound through rotate, revoke and expiry', 
     (await provider.for(user.id, target.id, McpAccessMode.READ_ONLY)).tools.map(
       tool => tool.name
     ),
-    ['read_document', 'doc_search']
+    [
+      'read_document',
+      'doc_search',
+      'canvas_capabilities',
+      'canvas_read',
+      'canvas_validate',
+      'canvas_layout',
+      'canvas_render',
+      'canvas_apply',
+      'canvas_operation',
+      'canvas_focus',
+      'canvas_import',
+      'canvas_export',
+    ]
   );
 
   const rotated = await credentials.rotate(

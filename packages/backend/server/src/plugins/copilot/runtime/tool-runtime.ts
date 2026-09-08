@@ -23,6 +23,16 @@ import {
   type CopilotToolSet,
   createArtifactReadTool,
   createArtifactSearchTool,
+  createCanvasApplyTool,
+  createCanvasCapabilitiesTool,
+  createCanvasExportTool,
+  createCanvasFocusTool,
+  createCanvasImportTool,
+  createCanvasLayoutTool,
+  createCanvasOperationTool,
+  createCanvasReadTool,
+  createCanvasRenderTool,
+  createCanvasValidateTool,
   createCodeArtifactTool,
   createConversationSummaryTool,
   createDocCanvasReadTool,
@@ -195,6 +205,115 @@ export class ToolRuntime {
         case 'frontendSnapshotDocument': {
           if (this.delegated.getLease(options, 'frontend_snapshot_document')) {
             tools.frontend_snapshot_document = createFrontendSnapshotTool(
+              this.delegated,
+              options
+            );
+          }
+          break;
+        }
+        case 'canvasCapabilities': {
+          if (this.delegated.getLease(options, 'frontend_canvas' as never)) {
+            tools.canvas_capabilities = createCanvasCapabilitiesTool(
+              this.ac,
+              this.delegated,
+              options
+            );
+          }
+          break;
+        }
+        case 'canvasRead': {
+          if (this.delegated.getLease(options, 'frontend_canvas' as never)) {
+            tools.canvas_read = createCanvasReadTool(
+              this.ac,
+              this.delegated,
+              options
+            );
+          }
+          break;
+        }
+        case 'canvasValidate': {
+          if (this.delegated.getLease(options, 'frontend_canvas' as never)) {
+            tools.canvas_validate = createCanvasValidateTool(
+              this.ac,
+              this.delegated,
+              options
+            );
+          }
+          break;
+        }
+        case 'canvasLayout': {
+          if (
+            this.delegated.getLease(options, 'frontend_canvas' as never) &&
+            this.delegated.canvasToolEnabled('canvas_layout')
+          ) {
+            tools.canvas_layout = createCanvasLayoutTool(
+              this.ac,
+              this.delegated,
+              options
+            );
+          }
+          break;
+        }
+        case 'canvasRender': {
+          if (this.delegated.getLease(options, 'frontend_canvas' as never)) {
+            tools.canvas_render = createCanvasRenderTool(
+              this.ac,
+              this.delegated,
+              options
+            );
+          }
+          break;
+        }
+        case 'canvasApply': {
+          if (this.delegated.getLease(options, 'frontend_canvas' as never)) {
+            tools.canvas_apply = createCanvasApplyTool(
+              this.ac,
+              this.delegated,
+              options
+            );
+          }
+          break;
+        }
+        case 'canvasOperation': {
+          if (this.delegated.getLease(options, 'frontend_canvas' as never)) {
+            tools.canvas_operation = createCanvasOperationTool(
+              this.ac,
+              this.delegated,
+              options
+            );
+          }
+          break;
+        }
+        case 'canvasFocus': {
+          if (this.delegated.getLease(options, 'frontend_canvas' as never)) {
+            tools.canvas_focus = createCanvasFocusTool(
+              this.ac,
+              this.delegated,
+              options
+            );
+          }
+          break;
+        }
+        case 'canvasImport': {
+          if (
+            this.delegated.getLease(options, 'frontend_canvas' as never) &&
+            this.delegated.canvasToolEnabled('canvas_import')
+          ) {
+            tools.canvas_import = createCanvasImportTool(
+              this.ac,
+              this.delegated,
+              options
+            );
+          }
+          break;
+        }
+        case 'canvasExport': {
+          if (
+            this.delegated.getLease(options, 'frontend_canvas' as never) &&
+            this.delegated.canvasToolEnabled('canvas_export')
+          ) {
+            tools.canvas_export = createCanvasExportTool(
+              this.ac,
               this.delegated,
               options
             );

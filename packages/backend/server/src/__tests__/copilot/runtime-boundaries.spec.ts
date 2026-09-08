@@ -61,6 +61,11 @@ import {
   createArtifactReadTool,
   createArtifactSearchTool,
 } from '../../plugins/copilot/tools/artifact';
+import {
+  CanvasToolSchemas,
+  createCanvasApplyTool,
+  createCanvasReadTool,
+} from '../../plugins/copilot/tools/canvas';
 import { buildDocCanvasGetter } from '../../plugins/copilot/tools/doc-canvas-read';
 import { buildDocumentSearch } from '../../plugins/copilot/tools/doc-search';
 import type { IndexerService } from '../../plugins/indexer/service';
@@ -76,7 +81,10 @@ test('delegated editor requests require exact identity and cancel on interruptio
       event: Record<string, unknown>
     ) => published.push({ event }),
   } as unknown as RealtimePublisher;
-  const delegated = new DelegatedEditorService(publisher);
+  const delegated = new DelegatedEditorService(
+    publisher,
+    {} as PermissionAccess
+  );
   delegated.upsert('user-1', 'connection-1', {
     clientId: 'client-1',
     sessionId: 'session-1',
@@ -221,6 +229,83 @@ test('delegated editor requests require exact identity and cancel on interruptio
     error: { code: 'FRONTEND_DISCONNECTED', retryable: true },
   });
   t.like(published.at(-1)?.event, { type: 'cancel', reason: 'disconnect' });
+});
+
+test('canvas chat tools validate strict schemas, bind the linked editor, and authorize writes', async t => {
+  const calls: Array<Record<string, unknown>> = [];
+  const lease = {
+    docId: 'doc-1',
+    workspaceId: 'workspace-1',
+  };
+  const delegated = {
+    getLease: () => lease,
+    execute: async (
+      _options: unknown,
+      _tool: unknown,
+      args: Record<string, unknown>
+    ) => {
+      calls.push(args);
+      return { ok: true, data: { contentRevision: 'revision-2', nodes: [] } };
+    },
+  } as unknown as DelegatedEditorService;
+  const readOnlyAccess = {
+    user: () => ({
+      workspace: () => ({
+        doc: () => ({
+          can: async (permission: string) => permission === 'Doc.Read',
+        }),
+      }),
+    }),
+  } as unknown as PermissionAccess;
+  const options = {
+    user: 'user-1',
+    session: 'session-1',
+    workspace: 'workspace-1',
+  };
+  const destination = { type: 'existing' as const, documentId: 'doc-1' };
+
+  const read = createCanvasReadTool(readOnlyAccess, delegated, options);
+  const readResult = await read.execute?.(
+    { destination, scope: {}, fields: ['bounds'] },
+    {}
+  );
+  t.deepEqual(readResult, {
+    ok: true,
+    data: { contentRevision: 'revision-2', nodes: [] },
+  });
+  t.deepEqual(calls, [
+    {
+      tool: 'canvas_read',
+      destination,
+      scope: {},
+      fields: ['bounds'],
+    },
+  ]);
+
+  const apply = createCanvasApplyTool(readOnlyAccess, delegated, options);
+  t.like(
+    await apply.execute?.({ planId: 'plan-1', requestId: 'request-1' }, {}),
+    { error: { code: 'CANVAS_ACCESS_DENIED', retryable: false } }
+  );
+  t.is(calls.length, 1);
+
+  t.false(
+    CanvasToolSchemas.canvas_apply.safeParse({
+      planId: 'plan-1',
+      requestId: 'request-1',
+      injected: true,
+    }).success
+  );
+  t.like(
+    await read.execute?.(
+      {
+        destination: { type: 'existing', documentId: 'other-doc' },
+        scope: {},
+      },
+      {}
+    ),
+    { error: { code: 'AMBIGUOUS_TARGET', retryable: false } }
+  );
 });
 
 test('canvas reads expose top-level and frame-owned canvas blocks', async t => {
@@ -1249,7 +1334,8 @@ test('controller projects successful streams and preparation failures to SSE eve
     { copilot: { unsplash: {} } } as Config,
     orchestrator,
     actions,
-    {} as CopilotStorage
+    {} as CopilotStorage,
+    {} as never
   );
 
   t.deepEqual(

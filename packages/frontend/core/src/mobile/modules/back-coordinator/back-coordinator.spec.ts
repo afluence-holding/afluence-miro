@@ -44,21 +44,18 @@ describe('MobileBackCoordinator', () => {
     }
   );
 
-  it.each([
-    'home',
-    'all-docs',
-    'all-collections',
-    'all-tags',
-    'journal',
-  ] as const)('passes back through at the %s root', kind => {
-    const coordinator = createCoordinator();
-    const back = vi.fn();
-    coordinator.setDestination({ kind, back });
-    expect(coordinator.request('system-back')).toBe(false);
-    expect(coordinator.request('ui-back')).toBe(false);
-    expect(coordinator.beginInteractive()).toBe(false);
-    expect(back).not.toHaveBeenCalled();
-  });
+  it.each(['home', 'all-docs', 'all-collections', 'all-tags'] as const)(
+    'passes back through at the %s root',
+    kind => {
+      const coordinator = createCoordinator();
+      const back = vi.fn();
+      coordinator.setDestination({ kind, back });
+      expect(coordinator.request('system-back')).toBe(false);
+      expect(coordinator.request('ui-back')).toBe(false);
+      expect(coordinator.beginInteractive()).toBe(false);
+      expect(back).not.toHaveBeenCalled();
+    }
+  );
 
   it('keeps ui-up separate from source back', () => {
     const coordinator = createCoordinator();

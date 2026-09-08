@@ -1,3 +1,4 @@
+import { validateCanvasToolArgs } from '@affine/realtime/canvas';
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { z } from 'zod';
 
@@ -51,6 +52,58 @@ export class DelegatedEditorRealtimeProvider implements OnModuleInit {
   ) {}
 
   onModuleInit() {
+    this.registry.registerRequest({
+      name: 'copilot.canvas.authorize',
+      input: z
+        .object({
+          workspaceId: z.string().min(1).max(128),
+          docId: z.string().min(1).max(128),
+          clientId: z.string().min(1).max(128),
+          targetDocId: z.string().min(1).max(128),
+          create: z.boolean(),
+        })
+        .strict(),
+      handle: async (user, input) => {
+        if (!user) throw new Error('AUTHENTICATION_REQUIRED');
+        return this.delegated.authorizeCanvasTarget(
+          user.id,
+          input.workspaceId,
+          input.clientId,
+          input.docId,
+          input.targetDocId,
+          input.create
+        );
+      },
+    });
+    this.registry.registerRequest({
+      name: 'copilot.canvas.execute',
+      input: z
+        .object({
+          workspaceId: z.string().min(1).max(128),
+          docId: z.string().min(1).max(128),
+          clientId: z.string().min(1).max(128),
+          tool: z.enum(['canvas_operation', 'canvas_focus']),
+          args: z
+            .record(z.unknown())
+            .refine(
+              args => Buffer.byteLength(JSON.stringify(args)) <= 128 * 1024,
+              'Canvas action is too large.'
+            ),
+        })
+        .strict(),
+      handle: async (user, input) => {
+        if (!user) throw new Error('AUTHENTICATION_REQUIRED');
+        const checked = validateCanvasToolArgs(input.tool, input.args);
+        if (!checked.ok) return { ok: false, error: checked.error };
+        return this.delegated.executeCanvas(
+          user.id,
+          input.workspaceId,
+          input.clientId,
+          input.docId,
+          { ...input.args, tool: input.tool }
+        );
+      },
+    });
     const leaseInput = z
       .object({
         clientId: z.string().min(1).max(128),
@@ -68,9 +121,10 @@ export class DelegatedEditorRealtimeProvider implements OnModuleInit {
               'frontend_read_selection',
               'frontend_read_nodes',
               'frontend_snapshot_document',
+              'frontend_canvas',
             ])
           )
-          .max(4),
+          .max(5),
       })
       .strict();
     this.registry.registerRequest({
@@ -94,7 +148,7 @@ export class DelegatedEditorRealtimeProvider implements OnModuleInit {
           input
         );
         this.event.broadcast('copilot.delegated.editor.upserted', lease);
-        return { ok: true, expiresAt: lease.expiresAt };
+        return { ok: true as const, expiresAt: lease.expiresAt };
       },
     });
     this.registry.registerRequest({
@@ -113,7 +167,7 @@ export class DelegatedEditorRealtimeProvider implements OnModuleInit {
             ...input,
           });
         }
-        return { ok: true };
+        return { ok: true as const };
       },
     });
     this.registry.registerRequest({

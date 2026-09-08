@@ -14,13 +14,56 @@ use napi::{
   bindgen_prelude::{CallbackContext, PromiseRaw, Unknown},
   threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
+use serde::Deserialize;
+use serde_json::Value;
 
 use super::contract::{NativeToolCall, ToolLoopStreamEvent};
 use crate::llm::{backend_transport_error, host::callback_dispatch_failed_reason};
 
-type ToolCallbackResult = std::result::Result<RuntimeToolCallbackResponse, String>;
+type ToolCallbackResult = std::result::Result<HostToolCallbackResponse, String>;
 type ToolCallbackSender = SyncSender<ToolCallbackResult>;
 type ToolCallbackSenderSlot = Arc<Mutex<Option<ToolCallbackSender>>>;
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(super) struct InlineImagePart {
+  pub(super) mime_type: String,
+  /// Base64 bytes only. The Node host removes the data URL prefix before this
+  /// crosses the N-API callback boundary.
+  pub(super) data: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(super) struct HostToolCallbackResponse {
+  call_id: String,
+  name: String,
+  args: Value,
+  raw_arguments_text: Option<String>,
+  argument_parse_error: Option<String>,
+  output: Value,
+  is_error: Option<bool>,
+  media: Option<Vec<InlineImagePart>>,
+}
+
+impl HostToolCallbackResponse {
+  fn into_runtime(self) -> RuntimeToolCallbackResponse {
+    RuntimeToolCallbackResponse {
+      call_id: self.call_id,
+      name: self.name,
+      args: self.args,
+      raw_arguments_text: self.raw_arguments_text,
+      argument_parse_error: self.argument_parse_error,
+      output: self.output,
+      is_error: self.is_error,
+    }
+  }
+}
+
+pub(super) struct ToolExecutionWithMedia {
+  pub(super) result: ToolExecutionResult,
+  pub(super) media: Vec<InlineImagePart>,
+}
 
 pub(super) struct NapiToolExecutor<'a> {
   callback: &'a ThreadsafeFunction<String, PromiseRaw<'static, String>>,
@@ -36,6 +79,7 @@ impl ToolExecutor<BackendError> for NapiToolExecutor<'_> {
   fn execute(&mut self, call: &NativeToolCall) -> std::result::Result<ToolExecutionResult, BackendError> {
     let result =
       execute_tool_callback(self.callback, call).map_err(|error| backend_transport_error(error.to_string()))?;
+    let result = result.into_runtime();
     Ok(ToolExecutionResult {
       call_id: result.call_id,
       name: result.name,
@@ -46,6 +90,27 @@ impl ToolExecutor<BackendError> for NapiToolExecutor<'_> {
       is_error: result.is_error,
     })
   }
+}
+
+pub(super) fn execute_tool_callback_with_media(
+  callback: &ThreadsafeFunction<String, PromiseRaw<'static, String>>,
+  call: &NativeToolCall,
+) -> Result<ToolExecutionWithMedia> {
+  let response = execute_tool_callback(callback, call)?;
+  let media = response.media.unwrap_or_default();
+  let response = response.into_runtime();
+  Ok(ToolExecutionWithMedia {
+    result: ToolExecutionResult {
+      call_id: response.call_id,
+      name: response.name,
+      arguments: response.args,
+      arguments_text: response.raw_arguments_text,
+      arguments_error: response.argument_parse_error,
+      output: response.output,
+      is_error: response.is_error,
+    },
+    media,
+  })
 }
 
 pub(super) struct NapiEventSink<'a> {
@@ -94,7 +159,7 @@ pub(super) fn emit_tool_loop_event(
 pub(super) fn execute_tool_callback(
   callback: &ThreadsafeFunction<String, PromiseRaw<'static, String>>,
   call: &NativeToolCall,
-) -> Result<RuntimeToolCallbackResponse> {
+) -> Result<HostToolCallbackResponse> {
   let request = RuntimeToolCallbackRequest {
     call_id: call.id.clone(),
     name: call.name.clone(),

@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   BeforeApplicationShutdown,
   Controller,
   Get,
   Logger,
   Param,
+  Post,
   Query,
   Req,
   Res,
@@ -38,6 +40,10 @@ import {
 import { CurrentUser, Public } from '../../core/auth';
 import { CopilotEnabled } from './feature';
 import {
+  CanvasArtifactHandleService,
+  readCanvasArtifactBody,
+} from './runtime/canvas-artifact-handles';
+import {
   ActionStreamHost,
   projectActionEventToChatEvent,
 } from './runtime/hosts/action-stream-host';
@@ -52,7 +58,6 @@ export interface ChatEvent {
 }
 
 const PING_INTERVAL = 5000;
-
 @CopilotEnabled()
 @Controller('/api/copilot')
 export class CopilotController implements BeforeApplicationShutdown {
@@ -63,7 +68,8 @@ export class CopilotController implements BeforeApplicationShutdown {
     private readonly config: Config,
     private readonly orchestrator: TurnOrchestrator,
     private readonly actionStreams: ActionStreamHost,
-    private readonly storage: CopilotStorage
+    private readonly storage: CopilotStorage,
+    private readonly canvasArtifacts: CanvasArtifactHandleService
   ) {}
 
   async beforeApplicationShutdown() {
@@ -375,5 +381,52 @@ export class CopilotController implements BeforeApplicationShutdown {
 
     res.setHeader('cache-control', 'public, max-age=2592000, immutable');
     body.pipe(res);
+  }
+
+  @Get('/canvas-artifact')
+  async getCanvasArtifact(
+    @CurrentUser() user: CurrentUser,
+    @Query('handle') handle: string,
+    @Res() res: Response
+  ) {
+    const artifact = await this.canvasArtifacts.read(user.id, handle);
+    res.setHeader('cache-control', 'private, no-store');
+    res.setHeader('content-length', artifact.size);
+    applyAttachHeaders(res, {
+      contentType: artifact.mimeType,
+      filename: artifact.fileName,
+    });
+    artifact.body.pipe(res);
+  }
+
+  @Post('/canvas-artifact')
+  async createCanvasArtifact(
+    @CurrentUser() user: CurrentUser,
+    @Req() req: Request,
+    @Query('workspaceId') workspaceId: string,
+    @Query('sessionId') sessionId: string,
+    @Query('docId') docId: string,
+    @Query('fileName') fileName: string
+  ) {
+    const mimeType = req.headers['content-type']
+      ?.split(';', 1)[0]
+      ?.trim()
+      .toLowerCase();
+    if (!workspaceId || !sessionId || !docId || !fileName || !mimeType) {
+      throw new BadRequestException('Canvas artifact metadata is required');
+    }
+    const artifact = await this.canvasArtifacts.persistExport({
+      userId: user.id,
+      workspaceId,
+      sessionId,
+      docId,
+      body: await readCanvasArtifactBody(req),
+      mimeType,
+      fileName,
+    });
+    return {
+      ...artifact,
+      url: `/api/copilot/canvas-artifact?handle=${encodeURIComponent(artifact.handle)}`,
+    };
   }
 }
