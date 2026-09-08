@@ -55,7 +55,7 @@ export const NATIVE_BLOCK_REGISTRY: readonly NativeBlockDescriptor[] = [
     flavour: 'affine:note',
     kind: 'block:affine:note',
     status: 'supported',
-    props: ['displayMode', ...GFX_PROPS],
+    props: ['background', 'displayMode', 'edgeless', ...GFX_PROPS],
   },
   {
     flavour: 'affine:frame',

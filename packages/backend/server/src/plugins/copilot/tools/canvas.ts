@@ -61,6 +61,12 @@ const nodeReference = z
     value => Boolean(value.id) || Boolean(value.ref),
     'id or ref is required'
   );
+const connectorPropsDescription =
+  'Native editable properties from canvas_capabilities. For a connector, frontEndpointStyle decorates sourceId/start and rearEndpointStyle decorates targetId/end. A standard source-to-target arrow uses frontEndpointStyle:"None" and rearEndpointStyle:"Arrow".';
+const connectorSourceDescription =
+  'Connector start node. frontEndpointStyle decorates this source endpoint.';
+const connectorTargetDescription =
+  'Connector end node. rearEndpointStyle decorates this target endpoint.';
 const node = z
   .object({
     id,
@@ -80,10 +86,12 @@ const node = z
       z.string().regex(/^block:[^\s]{1,120}$/),
     ]),
     bounds,
-    props: z.record(z.string(), z.unknown()),
+    props: z
+      .record(z.string(), z.unknown())
+      .describe(connectorPropsDescription),
     parentId: id.optional(),
-    sourceId: id.optional(),
-    targetId: id.optional(),
+    sourceId: id.optional().describe(connectorSourceDescription),
+    targetId: id.optional().describe(connectorTargetDescription),
     layout: z.enum(['auto', 'fixed', 'preserve']).optional(),
     design: z
       .object({
@@ -106,10 +114,13 @@ const operation = z.discriminatedUnion('type', [
       patch: z
         .object({
           bounds: bounds.optional(),
-          props: z.record(z.string(), z.unknown()).optional(),
+          props: z
+            .record(z.string(), z.unknown())
+            .describe(connectorPropsDescription)
+            .optional(),
           parentId: id.optional(),
-          sourceId: id.optional(),
-          targetId: id.optional(),
+          sourceId: id.optional().describe(connectorSourceDescription),
+          targetId: id.optional().describe(connectorTargetDescription),
           layout: z.enum(['auto', 'fixed', 'preserve']).optional(),
         })
         .strict()

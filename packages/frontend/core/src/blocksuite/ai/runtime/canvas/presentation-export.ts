@@ -17,6 +17,12 @@ export async function canvasToPdf(canvas: HTMLCanvasElement, title = 'Canvas') {
     throw new Error(
       'The canvas renderer did not produce a presentation image.'
     );
+  // ExportManager can return transparent pixels around DOM-backed blocks.
+  // PNG keeps that alpha, but a PDF viewer composites it against its own page
+  // color and made native notes appear gray. Presentations are deliberately
+  // opaque, so flatten onto the document background before embedding.
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, width, height);
   context.drawImage(canvas, 0, 0);
   const pngPromise = new Promise<Blob | null>(resolve =>
     snapshot.toBlob(resolve, 'image/png')

@@ -266,7 +266,7 @@ fn append_inline_images(images: &mut Vec<CoreMessage>, parts: &[InlineImagePart]
         },
         CoreContent::Image {
           source: serde_json::json!({
-            "kind": "bytes",
+            "kind": "data",
             "data": part.data,
             "mimeType": part.mime_type,
           }),
@@ -423,15 +423,15 @@ mod tests {
   }
 
   #[test]
-  fn canvas_media_requires_the_selected_model_to_accept_image_bytes() {
+  fn canvas_media_requires_the_selected_model_to_accept_image_data() {
     assert!(!capability_supports_inline_canvas_image(&capability(vec![
       AttachmentSource::Url
     ])));
     assert!(!capability_supports_inline_canvas_image(&capability(vec![
-      AttachmentSource::Data
+      AttachmentSource::Bytes
     ])));
     assert!(capability_supports_inline_canvas_image(&capability(vec![
-      AttachmentSource::Bytes
+      AttachmentSource::Data
     ])));
   }
 
@@ -461,12 +461,12 @@ mod tests {
         data: STANDARD.encode(b"canvas pixels"),
       }],
     )
-    .expect("the selected vision fallback accepts bounded bytes");
+    .expect("the selected vision fallback accepts bounded image data");
     assert!(fallback_delivered);
     assert!(matches!(messages.as_slice(), [message]
       if message.role == CoreRole::User
         && matches!(message.content.as_slice(), [CoreContent::Text { .. }, CoreContent::Image { source }]
-          if source["kind"] == "bytes" && source["mimeType"] == "image/png")));
+          if source["kind"] == "data" && source["mimeType"] == "image/png")));
   }
 
   #[test]

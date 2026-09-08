@@ -19,7 +19,21 @@ export const CANVAS_AUTHORING_GUIDE = {
   semantics:
     'Read existing colors/fonts first. Use a restrained palette already in the board. design.order defines reading order; design.role selects hierarchy; layout:fixed/preserve protects explicit geometry. Pass nodes and connectors together to canvas_layout for graph structure.',
   constraints:
-    'Use parentId for native note/block hierarchy or a frame/group, never for a process dependency. Dependencies use connector.sourceId/targetId. Do not put IDs, children, source or target inside arbitrary props. A page and surface are created only by document lifecycle.',
+    'Use parentId for native note/block hierarchy or a frame/group, never for a process dependency. Connector direction is sourceId → targetId. frontEndpointStyle decorates the source/start; rearEndpointStyle decorates the target/end. For a standard forward arrow use frontEndpointStyle:None and rearEndpointStyle:Arrow. Do not put IDs, children, source or target inside arbitrary props. A page and surface are created only by document lifecycle.',
+  connectorDirection: {
+    flow: 'sourceId → targetId',
+    frontEndpointStyle: 'marker at sourceId (the start)',
+    rearEndpointStyle: 'marker at targetId (the end)',
+    standardArrow: {
+      frontEndpointStyle: PointStyle.None,
+      rearEndpointStyle: PointStyle.Arrow,
+    },
+  },
+  nativeHierarchy: {
+    note: 'Use kind:"note" for the recommended spatial rich-content container; the document page parent is assigned automatically.',
+    children:
+      'Create inline block:* children with parentId set to the local note ID, for example note → block:affine:paragraph → block:affine:list.',
+  },
   enumValues: {
     shapeType: Object.values(ShapeType),
     shapeStyle: Object.values(ShapeStyle),
@@ -71,14 +85,16 @@ export const CANVAS_AUTHORING_GUIDE = {
       props: {
         mode: ConnectorMode.Orthogonal,
         routing: 'avoid-obstacles',
+        frontEndpointStyle: PointStyle.None,
+        rearEndpointStyle: PointStyle.Arrow,
         text: 'Sí',
       },
     },
     note: {
       id: 'note',
-      kind: 'block:affine:note',
+      kind: 'note',
       bounds: { x: 0, y: 0, w: 480, h: 240 },
-      props: {},
+      props: { background: '--affine-palette-shape-yellow' },
     },
     paragraph: {
       id: 'paragraph',

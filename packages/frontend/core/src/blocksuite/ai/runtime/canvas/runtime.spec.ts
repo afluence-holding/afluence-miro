@@ -14,6 +14,8 @@ const adapterState = vi.hoisted(() => ({
   silentUpdate: false,
   cascadeDeletes: false,
   failFontReadiness: false,
+  canonicalizeTables: false,
+  corruptTableCell: false,
   createCalls: 0,
 }));
 
@@ -70,7 +72,47 @@ vi.mock('./native-adapter', () => {
       ) {
         throw new Error('native adapter threw after a durable mutation');
       }
-      this.nodes.set(node.id, structuredClone(node));
+      let created = structuredClone(node);
+      const table = created.props.table;
+      if (
+        adapterState.canonicalizeTables &&
+        created.kind === 'block:affine:table' &&
+        table &&
+        typeof table === 'object' &&
+        !Array.isArray(table)
+      ) {
+        const semantic = table as {
+          rows: Array<Record<string, unknown>>;
+          columns: Array<Record<string, unknown>>;
+          cells: Record<string, unknown>;
+        };
+        created = {
+          ...created,
+          props: {
+            ...created.props,
+            table: {
+              rows: semantic.rows.map((row, index) => ({
+                ...row,
+                order: `${index}`,
+              })),
+              columns: semantic.columns.map((column, index) => ({
+                ...column,
+                order: `${index}`,
+              })),
+              cells: Object.fromEntries(
+                Object.entries(semantic.cells).map(([key, value]) => {
+                  const text =
+                    adapterState.corruptTableCell && key === 'r2:c1'
+                      ? 'Changed'
+                      : String(value);
+                  return [key, { text, richText: [{ insert: text }] }];
+                })
+              ),
+            },
+          },
+        };
+      }
+      this.nodes.set(node.id, created);
       return node.id;
     }
 
@@ -215,7 +257,54 @@ describe('CanvasRuntime durable executor invariants', () => {
     adapterState.silentUpdate = false;
     adapterState.cascadeDeletes = false;
     adapterState.failFontReadiness = false;
+    adapterState.canonicalizeTables = false;
+    adapterState.corruptTableCell = false;
     adapterState.createCalls = 0;
+  });
+
+  it('verifies canonical native table snapshots without hiding cell mismatches', async () => {
+    const tableNode = node('table', {
+      kind: 'block:affine:table',
+      props: {
+        table: {
+          rows: [{ id: 'r1' }, { id: 'r2' }],
+          columns: [{ id: 'c1', width: 220 }],
+          cells: { 'r1:c1': 'Expected', 'r2:c1': 'Value' },
+        },
+      },
+    });
+
+    adapterState.canonicalizeTables = true;
+    const acceptedHost = host();
+    const acceptedCanvas = runtime(acceptedHost);
+    const acceptedPlan = await prepare(acceptedCanvas, [
+      { type: 'create', node: tableNode },
+    ]);
+    expect(
+      receipt(await apply(acceptedCanvas, acceptedPlan, 'table-ok'))
+    ).toMatchObject({
+      execution: 'applied',
+      verification: 'passed',
+    });
+
+    adapterState.corruptTableCell = true;
+    const changedHost = host();
+    const changedCanvas = runtime(changedHost);
+    const changedPlan = await prepare(changedCanvas, [
+      { type: 'create', node: tableNode },
+    ]);
+    expect(
+      receipt(await apply(changedCanvas, changedPlan, 'table-mismatch'))
+    ).toMatchObject({
+      execution: 'partial',
+      verification: 'needs_attention',
+      warnings: [
+        expect.objectContaining({
+          code: 'PARTIAL_APPLICATION',
+          affectedIds: ['table'],
+        }),
+      ],
+    });
   });
 
   afterEach(() => vi.restoreAllMocks());

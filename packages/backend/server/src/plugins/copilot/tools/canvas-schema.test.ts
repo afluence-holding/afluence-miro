@@ -67,4 +67,18 @@ describe('canvas tool schema', () => {
     expect(CANVAS_MAX_LAYOUT_OBJECTS).toBe(500);
     expect(result.success).toBe(true);
   });
+
+  it('describes native connector direction without reversing its endpoint markers', () => {
+    const validateSchema = defineTool({
+      inputSchema: CanvasToolSchemas.canvas_validate,
+      execute: () => undefined,
+    }).jsonSchema!;
+    const schemaText = JSON.stringify(validateSchema);
+
+    expect(schemaText).toContain('frontEndpointStyle decorates sourceId/start');
+    expect(schemaText).toContain('rearEndpointStyle decorates targetId/end');
+    expect(schemaText).toContain(
+      'frontEndpointStyle:\\"None\\" and rearEndpointStyle:\\"Arrow\\"'
+    );
+  });
 });

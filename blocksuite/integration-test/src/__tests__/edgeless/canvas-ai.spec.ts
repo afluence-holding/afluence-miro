@@ -226,7 +226,11 @@ function funnelNodes(): CanvasNode[] {
     kind: 'connector' as const,
     parentId: 'funnel-frame',
     bounds: { x: 0, y: 0, w: 1, h: 1 },
-    props: { routing: 'avoid-obstacles' },
+    props: {
+      routing: 'avoid-obstacles',
+      frontEndpointStyle: 'None',
+      rearEndpointStyle: 'Arrow',
+    },
     sourceId: shape.id,
     targetId: shapes[index + 1]!.id,
   }));
@@ -253,6 +257,23 @@ describe('Edgeless AI canvas en Chromium', () => {
       host: window.editor.host!,
       workspaceId: 'browser-workspace',
       docId: 'doc:home',
+    });
+    const capabilities = assertOk<{
+      authoring: {
+        connectorDirection: {
+          flow: string;
+          standardArrow: Record<string, string>;
+        };
+      };
+    }>(await runtime.execute('canvas_capabilities', { destination }));
+    expect(capabilities.authoring.connectorDirection).toEqual({
+      flow: 'sourceId → targetId',
+      frontEndpointStyle: 'marker at sourceId (the start)',
+      rearEndpointStyle: 'marker at targetId (the end)',
+      standardArrow: {
+        frontEndpointStyle: 'None',
+        rearEndpointStyle: 'Arrow',
+      },
     });
 
     const firstPlan = assertOk<{ plan: CanvasPlan }>(
@@ -326,9 +347,17 @@ describe('Edgeless AI canvas en Chromium', () => {
     );
     const shapes = initialRead.nodes.filter(node => node.kind === 'shape');
     expect(shapes).toHaveLength(6);
+    const connectors = initialRead.nodes.filter(
+      node => node.kind === 'connector'
+    );
+    expect(connectors).toHaveLength(5);
     expect(
-      initialRead.nodes.filter(node => node.kind === 'connector')
-    ).toHaveLength(5);
+      connectors.every(
+        connector =>
+          connector.props.frontEndpointStyle === 'None' &&
+          connector.props.rearEndpointStyle === 'Arrow'
+      )
+    ).toBe(true);
     expect(
       initialRead.nodes.filter(node => node.kind === 'frame')
     ).toHaveLength(1);
@@ -337,6 +366,19 @@ describe('Edgeless AI canvas en Chromium', () => {
         .filter(node => node.kind === 'shape' || node.kind === 'connector')
         .every(node => node.parentId === firstReceipt.idMap['funnel-frame'])
     ).toBe(true);
+    const firstConnectorId = firstReceipt.idMap['funnel-edge-1'];
+    if (!firstConnectorId)
+      throw new Error('The first connector was not assigned a native ID.');
+    const firstNativeConnector = getSurface(
+      window.doc,
+      window.editor
+    ).model.getElementById(firstConnectorId);
+    expect(firstNativeConnector).toMatchObject({
+      source: { id: firstReceipt.idMap['funnel-shape-1'] },
+      target: { id: firstReceipt.idMap['funnel-shape-2'] },
+      frontEndpointStyle: 'None',
+      rearEndpointStyle: 'Arrow',
+    });
 
     const manuallyEditedId = shapes.find(
       shape => shape.props.text === 'Captura'
@@ -722,6 +764,118 @@ describe('Edgeless AI canvas en Chromium', () => {
     runtime.dispose();
   });
 
+  test('crea una nota Edgeless raíz sin parentId explícito', async () => {
+    cleanup = await setupEditor('edgeless');
+    const host = window.editor.host!;
+    const runtime = new CanvasRuntime({
+      host,
+      workspaceId: 'browser-workspace',
+      docId: 'doc:home',
+    });
+    const plan = assertOk<{ plan: CanvasPlan }>(
+      await runtime.execute(
+        'canvas_validate',
+        {
+          destination,
+          baseContentRevision: runtime.getContentRevision(),
+          requestedScope: { bounds: { x: 40, y: 80, w: 320, h: 180 } },
+          operations: [
+            {
+              type: 'create',
+              node: {
+                id: 'root-note',
+                kind: 'block:affine:note',
+                bounds: { x: 40, y: 80, w: 320, h: 180 },
+                props: {},
+              },
+            },
+          ],
+        },
+        { canWrite: true }
+      )
+    ).plan;
+    const receipt = assertOk<CanvasReceipt>(
+      await runtime.execute(
+        'canvas_apply',
+        { planId: plan.planId, requestId: 'root-note-without-parent' },
+        { canWrite: true }
+      )
+    );
+    expect(receipt.execution, JSON.stringify(receipt.warnings)).toBe('applied');
+    const noteId = receipt.idMap['root-note'];
+    if (!noteId) throw new Error('The root note was not created.');
+    expect(host.store.getModelById(noteId)?.parent?.id).toBe(
+      host.store.root?.id
+    );
+    const read = assertOk<{ nodes: readonly CanvasNode[] }>(
+      await runtime.execute('canvas_read', {
+        destination,
+        scope: { ids: [noteId] },
+        limit: 10,
+      })
+    );
+    expect(read.nodes[0]).toMatchObject({
+      id: noteId,
+      kind: 'note',
+    });
+    runtime.dispose();
+  });
+
+  test('incluye el título nativo de un frame en la exportación PNG', async () => {
+    cleanup = await setupEditor('edgeless');
+    const runtime = new CanvasRuntime({
+      host: window.editor.host!,
+      workspaceId: 'browser-workspace',
+      docId: 'doc:home',
+    });
+    const plan = assertOk<{ plan: CanvasPlan }>(
+      await runtime.execute(
+        'canvas_validate',
+        {
+          destination,
+          baseContentRevision: runtime.getContentRevision(),
+          requestedScope: { bounds: { x: 20, y: 50, w: 440, h: 320 } },
+          operations: [
+            {
+              type: 'create',
+              node: {
+                id: 'export-frame',
+                kind: 'frame',
+                bounds: { x: 20, y: 80, w: 420, h: 260 },
+                props: { title: 'Título exportado' },
+              },
+            },
+          ],
+        },
+        { canWrite: true }
+      )
+    ).plan;
+    assertOk<CanvasReceipt>(
+      await runtime.execute(
+        'canvas_apply',
+        { planId: plan.planId, requestId: 'export-frame-title' },
+        { canWrite: true }
+      )
+    );
+    const render = assertOk<{ artifact: { url: string } }>(
+      await runtime.execute('canvas_render', {
+        destination,
+        scope: { bounds: { x: 20, y: 50, w: 440, h: 320 } },
+      })
+    );
+    const image = await canvasPixels(render.artifact.url);
+    const titleInk = Array.from({ length: 150 }, (_, index) => {
+      const x = 54 + (index % 75);
+      const y = 55 + Math.floor(index / 75) * 10;
+      return pixelAt(image, x, y);
+    }).some(
+      ([red, green, blue, alpha]) =>
+        alpha === 255 && red < 100 && green < 100 && blue < 100
+    );
+    expect(titleInk).toBe(true);
+    runtime.dispose();
+  });
+
   test('mantiene los píxeles de una nota estables entre PNG y PDF', async () => {
     cleanup = await setupEditor('edgeless');
     const host = window.editor.host!;
@@ -729,7 +883,9 @@ describe('Edgeless AI canvas en Chromium', () => {
     if (!root) throw new Error('Document root is unavailable.');
     const noteId = host.store.addBlock(
       'affine:note',
-      { xywh: '[0,0,498,244]' },
+      // Keep the DOM-backed block outside the initial viewport. Canvas export
+      // must mount it before html2canvas reads its dimensions.
+      { xywh: '[1290,860,498,244]' },
       root
     );
     host.store.addBlock(
@@ -755,6 +911,33 @@ describe('Edgeless AI canvas en Chromium', () => {
       })
     );
     const first = await canvasPixels(png.artifact.url);
+    const noteCorners = [
+      [70, 70],
+      [first.width - 70, 70],
+      [70, first.height - 70],
+      [first.width - 70, first.height - 70],
+    ] as const;
+    // A mounted note has its native white card background and paragraph ink.
+    // A blank/zero-sized html2canvas capture is transparent, while the
+    // production regression rendered this region as an opaque gray rectangle.
+    expect(
+      noteCorners.every(([x, y]) => {
+        const [red, green, blue, alpha] = pixelAt(first, x, y);
+        return alpha === 255 && red > 240 && green > 240 && blue > 240;
+      })
+    ).toBe(true);
+    const noteInk = Array.from(
+      { length: (first.width - 100) * (first.height - 100) },
+      (_, index) => {
+        const x = 50 + (index % (first.width - 100));
+        const y = 50 + Math.floor(index / (first.width - 100));
+        return pixelAt(first, x, y);
+      }
+    ).some(
+      ([red, green, blue, alpha]) =>
+        alpha === 255 && red < 80 && green < 80 && blue < 80
+    );
+    expect(noteInk).toBe(true);
     const repeated = assertOk<{
       artifact: { url: string; mimeType: string };
     }>(

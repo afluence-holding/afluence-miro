@@ -251,6 +251,28 @@ describe('native blocks for canvas', () => {
 
   it('enforces registered parents, structural exclusions, allowed fields and blob preparation', async () => {
     const { store, noteId } = createStore();
+    const rootId = store.root?.id;
+    expect(rootId).toBeTruthy();
+    expect(
+      validateNativeBlockNode(
+        store,
+        block(
+          'affine:note',
+          {
+            background: { light: '#FFF7ED', dark: '#252525' },
+            edgeless: {
+              style: {
+                borderRadius: 8,
+                borderSize: 4,
+                borderStyle: 'none',
+                shadowType: '--affine-note-shadow-box',
+              },
+            },
+          },
+          rootId!
+        )
+      )
+    ).toMatchObject({ ok: true });
     expect(
       validateNativeBlockNode(store, block('affine:page', {}, noteId))
     ).toMatchObject({ ok: false });

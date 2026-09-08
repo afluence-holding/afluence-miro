@@ -205,6 +205,50 @@ function boundsOf(model: GfxModel): CanvasBounds {
   };
 }
 
+function paintFrameTitles(
+  canvas: HTMLCanvasElement,
+  bounds: CanvasBounds,
+  frames: readonly GfxBlockElementModel[]
+) {
+  const context = canvas.getContext('2d');
+  if (!context) return;
+  const dpr = canvas.width / (bounds.w + 100);
+  if (!Number.isFinite(dpr) || dpr <= 0) return;
+  context.save();
+  context.setTransform(dpr, 0, 0, dpr, 0, 0);
+  context.font = '14px Inter, sans-serif';
+  context.textBaseline = 'middle';
+  for (const frame of frames) {
+    if (frame.flavour !== 'affine:frame') continue;
+    const titleValue = (frame.props as unknown as Record<string, unknown>)
+      .title;
+    const title =
+      typeof titleValue === 'string'
+        ? titleValue.trim()
+        : titleValue instanceof Text
+          ? titleValue.toString().trim()
+          : '';
+    if (!title) continue;
+    const frameBound = Bound.deserialize(frame.xywh);
+    const x = frameBound.x - bounds.x + 50;
+    const y = frameBound.y - bounds.y + 50 - 26;
+    const width = Math.min(
+      Math.max(1, frameBound.w),
+      context.measureText(title).width + 8
+    );
+    context.fillStyle = '#ffffff';
+    context.strokeStyle = '#d1d1d1';
+    context.lineWidth = 1;
+    context.beginPath();
+    context.roundRect(x, y, width, 22, 4);
+    context.fill();
+    context.stroke();
+    context.fillStyle = '#000000';
+    context.fillText(title, x + 4, y + 11);
+  }
+  context.restore();
+}
+
 function publicBlockNode(snapshot: NativeBlockSnapshot): CanvasNode {
   return {
     id: snapshot.id,
@@ -503,18 +547,28 @@ export class NativeCanvasAdapter {
       }
       default:
         if (node.kind.startsWith('block:')) {
-          const parentId = this.usesVisualParent(
+          const requestedParentId = this.usesVisualParent(
             node,
             node.parentId,
             localParent
           )
             ? this.surface.id
             : node.parentId;
+          // A native note is a top-level Edgeless block. Its public tool
+          // example permits omitting parentId, while nested native blocks do
+          // require an explicit parent.
+          const parentId =
+            requestedParentId ??
+            (node.kind === 'block:affine:note'
+              ? this.host.store.root?.id
+              : undefined);
+          if (!parentId)
+            throw new Error(`Creation of ${node.kind} requires a parent`);
           return createNativeBlock(
             this.host.store,
             { ...node, parentId },
             parentId,
-            parentId === node.parentId ? localParent : undefined
+            parentId === requestedParentId ? localParent : undefined
           );
         }
         throw new Error(`Creation of ${node.kind} is not supported`);
@@ -699,6 +753,11 @@ export class NativeCanvasAdapter {
     parentId?: string,
     localParent?: NativeBlockLocalParent
   ) {
+    const resolvedParentId =
+      parentId ??
+      (node.kind === 'block:affine:note'
+        ? this.host.store.root?.id
+        : undefined);
     if (this.usesVisualParent(node, parentId, localParent)) {
       const surfaceId = this.surface.id;
       return validateNativeBlockNode(
@@ -709,8 +768,8 @@ export class NativeCanvasAdapter {
     }
     return validateNativeBlockNode(
       this.host.store,
-      node,
-      parentId,
+      { ...node, ...(resolvedParentId ? { parentId: resolvedParentId } : {}) },
+      resolvedParentId,
       localParent
     );
   }
@@ -750,6 +809,12 @@ export class NativeCanvasAdapter {
       (model): model is GfxBlockElementModel =>
         model instanceof GfxBlockElementModel
     );
+    const frameCandidates =
+      blocks ??
+      this.gfx.gfxElements.filter(
+        (model): model is GfxBlockElementModel =>
+          model instanceof GfxBlockElementModel
+      );
     const elements = models?.filter(
       (model): model is GfxPrimitiveElementModel =>
         model instanceof GfxPrimitiveElementModel
@@ -799,6 +864,7 @@ export class NativeCanvasAdapter {
           )
         : undefined);
     if (!rendered) return undefined;
+    paintFrameTitles(rendered, bounds, frameCandidates);
     if (scale !== 1) {
       const resized = document.createElement('canvas');
       resized.width = Math.max(1, Math.round(rendered.width * scale));

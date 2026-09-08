@@ -83,15 +83,14 @@ pub(super) fn selected_route_supports_vision(vision_by_route: &HashMap<String, b
   vision_by_route.get(route_id).copied().unwrap_or(false)
 }
 
-/// Canvas tool renders are replayed as `CoreContent::Image { kind: "bytes" }`.
-/// A model that merely declares image input but only accepts URLs or data handles
-/// must not be told it inspected those bytes.
+/// Canvas tool renders are replayed as bounded base64 `data` image sources.
+/// The selected model must explicitly declare support for that source kind.
 pub(super) fn capability_supports_inline_canvas_image(
   capability: &llm_adapter::capability::DeclaredModelCapability,
 ) -> bool {
   capability.input.contains(&ModelInput::Image)
     && capability.attachment_kinds.contains(&AttachmentKind::Image)
-    && capability.attachment_sources.contains(&AttachmentSource::Bytes)
+    && capability.attachment_sources.contains(&AttachmentSource::Data)
 }
 
 pub(super) fn request_and_slot(

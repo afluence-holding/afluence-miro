@@ -367,6 +367,88 @@ function equal(a: unknown, b: unknown) {
   return stableStringify(a) === stableStringify(b);
 }
 
+function normalizeTableForVerification(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+  const table = value as JsonObject;
+  const normalizeAxis = (axis: unknown) =>
+    Array.isArray(axis)
+      ? axis.map((item, index) =>
+          item && typeof item === 'object' && !Array.isArray(item)
+            ? { order: `${index}`, ...(item as JsonObject) }
+            : item
+        )
+      : axis;
+  const cells =
+    table.cells &&
+    typeof table.cells === 'object' &&
+    !Array.isArray(table.cells)
+      ? Object.fromEntries(
+          Object.entries(table.cells as JsonObject).map(([key, cell]) => {
+            if (typeof cell === 'string') {
+              return [key, { text: cell, richText: [{ insert: cell }] }];
+            }
+            if (!cell || typeof cell !== 'object' || Array.isArray(cell))
+              return [key, cell];
+            const semantic = cell as JsonObject;
+            const richText = Array.isArray(semantic.richText)
+              ? semantic.richText
+              : undefined;
+            const text =
+              typeof semantic.text === 'string'
+                ? semantic.text
+                : richText
+                  ? richText
+                      .map(delta =>
+                        delta && typeof delta === 'object'
+                          ? ((delta as JsonObject).insert ?? '')
+                          : ''
+                      )
+                      .join('')
+                  : undefined;
+            return [
+              key,
+              {
+                ...semantic,
+                ...(text === undefined ? {} : { text }),
+                ...(richText === undefined
+                  ? text === undefined
+                    ? {}
+                    : { richText: [{ insert: text }] }
+                  : { richText }),
+              },
+            ];
+          })
+        )
+      : table.cells;
+  return {
+    ...table,
+    rows: normalizeAxis(table.rows),
+    columns: normalizeAxis(table.columns),
+    cells,
+  };
+}
+
+function verificationEqual(a: unknown, b: unknown) {
+  const normalize = (value: unknown) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value))
+      return value;
+    const selected = value as JsonObject;
+    const props = selected.props;
+    if (!props || typeof props !== 'object' || Array.isArray(props))
+      return value;
+    const propsObject = props as JsonObject;
+    if (!Object.hasOwn(propsObject, 'table')) return value;
+    return {
+      ...selected,
+      props: {
+        ...propsObject,
+        table: normalizeTableForVerification(propsObject.table),
+      },
+    };
+  };
+  return equal(normalize(a), normalize(b));
+}
+
 type CanvasCreateOperation = Extract<
   CanvasPlan['operations'][number],
   { type: 'create' }
@@ -1436,7 +1518,7 @@ export class CanvasRuntime {
           ...(expected.targetId ? ['targetId'] : []),
         ];
         if (
-          !equal(
+          !verificationEqual(
             pickNodeFields(actual, fields),
             pickNodeFields(expected, fields)
           )
@@ -1457,7 +1539,8 @@ export class CanvasRuntime {
           idMap as Record<string, string>
         );
         const fields = patchFields(patch);
-        if (!equal(pickNodeFields(actual, fields), patch)) mismatches.add(id);
+        if (!verificationEqual(pickNodeFields(actual, fields), patch))
+          mismatches.add(id);
       }
     }
     return {
@@ -3118,12 +3201,37 @@ export class CanvasRuntime {
     const scope = args.scope ?? {};
     const nodes = this.nodesInScope(scope);
     const bounds = scope.bounds ?? commonBounds(nodes);
-    const canvas = await this.adapter.render(
-      bounds,
-      scope.ids,
-      args.scale ?? 1,
-      context
+    // Gfx block views are virtualized outside the live viewport. Render a
+    // snapshot in an isolated, mounted preview so exporting an off-screen note
+    // never reads a zero-sized DOM block or changes the user's document/view.
+    const { createCanvasPreviewDocument } = await import('./preview-document');
+    const preview = await createCanvasPreviewDocument(
+      this.options.host,
+      false,
+      context.signal
     );
+    let canvas: HTMLCanvasElement | undefined;
+    try {
+      const previewAdapter = new NativeCanvasAdapter(preview.host);
+      previewAdapter.gfx.viewport.setViewportByBound(
+        Bound.from(bounds),
+        [24, 24, 24, 24],
+        false
+      );
+      await preview.host.updateComplete.catch(() => undefined);
+      await new Promise<void>(resolve =>
+        requestAnimationFrame(() => resolve())
+      );
+      context.signal?.throwIfAborted();
+      canvas = await previewAdapter.render(
+        bounds,
+        scope.ids,
+        args.scale ?? 1,
+        context
+      );
+    } finally {
+      preview.dispose();
+    }
     abortIfNeeded(context.signal);
     deadlineIfNeeded(context.deadline);
     if (!canvas)
@@ -3424,12 +3532,35 @@ export class CanvasRuntime {
     if (args.format === 'pdf') {
       const nodes = this.nodesInScope(args.scope);
       const bounds = args.scope.bounds ?? commonBounds(nodes);
-      const canvas = await this.adapter.render(
-        bounds,
-        args.scope.ids,
-        1,
-        context
+      const { createCanvasPreviewDocument } =
+        await import('./preview-document');
+      const preview = await createCanvasPreviewDocument(
+        this.options.host,
+        false,
+        context.signal
       );
+      let canvas: HTMLCanvasElement | undefined;
+      try {
+        const previewAdapter = new NativeCanvasAdapter(preview.host);
+        previewAdapter.gfx.viewport.setViewportByBound(
+          Bound.from(bounds),
+          [24, 24, 24, 24],
+          false
+        );
+        await preview.host.updateComplete.catch(() => undefined);
+        await new Promise<void>(resolve =>
+          requestAnimationFrame(() => resolve())
+        );
+        context.signal?.throwIfAborted();
+        canvas = await previewAdapter.render(
+          bounds,
+          args.scope.ids,
+          1,
+          context
+        );
+      } finally {
+        preview.dispose();
+      }
       abortIfNeeded(context.signal);
       deadlineIfNeeded(context.deadline);
       if (!canvas)

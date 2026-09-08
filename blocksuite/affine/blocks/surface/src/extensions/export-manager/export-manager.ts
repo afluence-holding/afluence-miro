@@ -471,7 +471,18 @@ export class ExportManager {
       if (blockComponent) {
         const blockBound = xywhArrayToObject(block);
         const canvasData = await this._html2canvas(
-          blockComponent as HTMLElement
+          blockComponent as HTMLElement,
+          // Edgeless blocks are rendered under the viewport transform. The
+          // clone removes that transform, but html2canvas otherwise retains
+          // the pre-transform client rect (for example a 498×244 note at
+          // 0.49 zoom becomes a 244×119 capture). Render in model/world
+          // dimensions so the following drawImage has real pixels across the
+          // entire bound instead of stretching a partial, gray capture.
+          {
+            width: Math.max(1, Math.round(blockBound.w)),
+            height: Math.max(1, Math.round(blockBound.h)),
+            scale: 1,
+          }
         );
         ctx.drawImage(
           canvasData,

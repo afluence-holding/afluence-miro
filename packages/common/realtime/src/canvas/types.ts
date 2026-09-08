@@ -51,8 +51,9 @@ export interface CanvasNode {
   readonly bounds: CanvasBounds;
   readonly props: CanvasProps;
   readonly parentId?: CanvasId;
-  /** Connector endpoint IDs. They are only meaningful for `connector`. */
+  /** Connector start. Native frontEndpointStyle decorates this endpoint. */
   readonly sourceId?: CanvasId;
+  /** Connector end. Native rearEndpointStyle decorates this endpoint. */
   readonly targetId?: CanvasId;
   readonly layout?: CanvasLayoutPolicy;
   /** Authoring hints; these are not arbitrary native block properties. */
