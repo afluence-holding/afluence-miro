@@ -403,7 +403,9 @@ mod tests {
   use llm_adapter::core::{CoreContent, CoreRole};
   use serde_json::json;
 
-  use super::{InlineImagePart, append_inline_images_for_selected_route, set_visual_delivery_marker};
+  use super::{
+    HostToolCallbackResponse, InlineImagePart, append_inline_images_for_selected_route, set_visual_delivery_marker,
+  };
   use crate::runtime::backend_runtime::copilot::dispatch::{
     capability_supports_inline_canvas_image, selected_route_supports_vision,
   };
@@ -476,5 +478,40 @@ mod tests {
     assert_eq!(output["data"]["visualVerificationDeliveredToModel"], false);
     set_visual_delivery_marker(&mut output, true);
     assert_eq!(output["data"]["visualVerificationDeliveredToModel"], true);
+  }
+
+  #[test]
+  fn host_tool_callback_accepts_direct_node_responses_and_rejects_wrappers() {
+    let render: HostToolCallbackResponse = serde_json::from_value(json!({
+      "callId": "call-render",
+      "name": "canvas_render",
+      "args": {},
+      "output": { "ok": true },
+      "media": [{ "mimeType": "image/png", "data": "cHJldmlldw==" }]
+    }))
+    .expect("Node tool callbacks must serialize fields at the native top level");
+    assert_eq!(render.call_id, "call-render");
+    assert_eq!(render.name, "canvas_render");
+    assert_eq!(render.media.expect("render media")[0].mime_type, "image/png");
+
+    let failure: HostToolCallbackResponse = serde_json::from_value(json!({
+      "callId": "call-capabilities",
+      "name": "canvas_capabilities",
+      "args": {},
+      "output": { "message": "editor unavailable" },
+      "isError": true
+    }))
+    .expect("tool failures must use the same top-level callback contract");
+    assert_eq!(failure.is_error, Some(true));
+
+    let wrapped = serde_json::from_value::<HostToolCallbackResponse>(json!({
+      "response": {
+        "callId": "call-capabilities",
+        "name": "canvas_capabilities",
+        "args": {},
+        "output": {}
+      }
+    }));
+    assert!(wrapped.is_err());
   }
 }

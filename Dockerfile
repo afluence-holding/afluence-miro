@@ -31,7 +31,16 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
-COPY . .
+# Keep the expensive fat-LTO build independent from the web workspace.  These
+# are every Cargo workspace member plus the root manifests, toolchain, and
+# Cargo configuration; copying a member directory also retains its build
+# scripts, migrations, fixtures, and include_{str,bytes}! inputs.
+COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
+COPY .cargo/config.toml ./.cargo/config.toml
+COPY packages/backend/native ./packages/backend/native
+COPY packages/common/native ./packages/common/native
+COPY packages/frontend/mobile-native ./packages/frontend/mobile-native
+COPY packages/frontend/native ./packages/frontend/native
 
 # tree-sitter currently requires this compatibility define on Linux builds.
 ENV CC="clang -D_BSD_SOURCE"

@@ -9,8 +9,7 @@ export type CanvasToolResultMedia = {
   data: string;
 };
 
-export type NativeToolCallbackEnvelope = {
-  response: LlmToolCallbackResponse;
+export type NativeToolCallbackResponseWithMedia = LlmToolCallbackResponse & {
   media?: CanvasToolResultMedia[];
 };
 
@@ -68,9 +67,9 @@ function withoutInlineRenderData(
  */
 export function normalizeCanvasRenderToolResponse(
   response: LlmToolCallbackResponse
-): NativeToolCallbackEnvelope {
+): NativeToolCallbackResponseWithMedia {
   if (response.name !== 'canvas_render' || response.isError) {
-    return { response };
+    return response;
   }
   const output = response.output;
   const artifact =
@@ -81,7 +80,7 @@ export function normalizeCanvasRenderToolResponse(
   // bounded media here, then let that loop decide from the selected model.
   const media = isRecord(artifact) ? parseDataUrl(artifact.dataUrl) : undefined;
   return {
-    response: withoutInlineRenderData(response, false),
+    ...withoutInlineRenderData(response, false),
     ...(media ? { media: [media] } : {}),
   };
 }

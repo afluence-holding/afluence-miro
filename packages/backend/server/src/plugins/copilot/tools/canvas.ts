@@ -1,4 +1,7 @@
-import { validateCanvasToolArgs } from '@affine/realtime/canvas';
+import {
+  CANVAS_MAX_LAYOUT_OBJECTS,
+  validateCanvasToolArgs,
+} from '@affine/realtime/canvas';
 import { z } from 'zod';
 
 import type { PermissionAccess } from '../../../core/permission';
@@ -173,7 +176,7 @@ export const CanvasToolSchemas = {
       destination,
       baseContentRevision: revision,
       requestedScope: canvasScope,
-      nodes: z.array(node).min(1).max(200),
+      nodes: z.array(node).min(1).max(CANVAS_MAX_LAYOUT_OBJECTS),
       options: layoutOptions,
       taskId: id.optional(),
       parentOperationId: id.optional(),
@@ -498,7 +501,7 @@ export function createCanvasImportTool(
     delegated,
     options,
     'canvas_import',
-    'Prepare a revision-bound import plan from an authorized artifact or file handle. It reports fidelity and dependencies; use canvas_apply to insert content.'
+    'Prepare a revision-bound import plan. For an authenticated artifact, pass content exactly as { kind: "artifact_handle", handle: "<returned handle>" }; recipe and supported text/JSON formats may use inline content. Consult canvas_capabilities for supported formats and inspect fidelity before canvas_apply inserts content.'
   );
 }
 export function createCanvasExportTool(
@@ -511,6 +514,6 @@ export function createCanvasExportTool(
     delegated,
     options,
     'canvas_export',
-    'Export an explicit canvas scope and format from the linked editor. Returns an authorized artifact handle, revision, checksum, and fidelity report.'
+    'Export an explicit canvas scope in a format declared by canvas_capabilities. Inspect fidelity/losses, revision, and checksum. When artifact.handle is returned, re-import it only as content { kind: "artifact_handle", handle: artifact.handle }, never as a URL or copied bytes.'
   );
 }
