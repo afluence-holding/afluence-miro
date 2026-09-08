@@ -4,7 +4,7 @@ Fecha: 2026-09-08. Rama: `codex/edgeless-ai-designer`.
 
 El chat y MCP comparten un contrato de diez herramientas que trabaja sobre el editor Edgeless abierto. La implementación crea objetos nativos, prepara geometría, aplica cambios verificables y devuelve recibos que permiten enfocar, deshacer, rehacer o recuperar una importación. Incluye render del editor y transporte de sus píxeles al modelo cuando la ruta seleccionada admite visión.
 
-Este informe documenta código y pruebas locales. La aceptación conversacional del [PRD](./PRD.md) sigue pendiente en una instancia con un proveedor real, al igual que el despliegue. Las pruebas automáticas del editor no equivalen a haber completado todos los casos manuales de la [guía de aceptación](./GUIA-PRUEBAS.md).
+Este informe documenta código y pruebas locales. La implementación ya está desplegada en la instancia de pruebas; la aceptación conversacional del [PRD](./PRD.md) está en curso y sus evidencias, incidencias y gates pendientes se registran en [PRODUCCION.md](./PRODUCCION.md). Las pruebas automáticas del editor no equivalen a haber completado todos los casos manuales de la [guía de aceptación](./GUIA-PRUEBAS.md).
 
 ## Qué está implementado
 
@@ -137,10 +137,12 @@ yarn tsc -b packages/frontend/core/tsconfig.json
 
 Chromium debe estar instalado para Playwright. El test del benchmark escribe `/tmp/edgeless-ai-browser-benchmark.json`; el funnel guarda los bytes reales del renderer en `/tmp/edgeless-ai-render.png`. Las copias de cierre están en [evidence](./evidence/README.md).
 
+El gate Chromium de jerarquía para el funnel está cerrado: el caso focal aplica un frame con seis shapes y cinco conectores, exige recibo `applied` y verificación `passed`, y confirma que los once hijos tengan el `parentId` del frame remapeado. Su resultado no certifica la UAT del chat ni la calidad visual de producción; ambos siguen en [PRODUCCION.md](./PRODUCCION.md).
+
 Los typechecks del backend y de `@affine/realtime` pasaron. También pasó `tsc -b packages/frontend/core/tsconfig.json`, incluyendo las dependencias TypeScript del core. Se corrigieron bloqueos previos del fork: imports y argumentos sin uso, fixtures BYOK y navegación móvil, el reexport de un módulo de descarga deliberadamente vacío y cinco campos de configuración de enlaces desactivados. Los enlaces retirados no se restauraron. Se conservó el benchmark real de Chromium y se retiró un benchmark redundante que importaba APIs Node desde el paquete web. Esta verificación de TypeScript no es un build de la imagen de producción ni un despliegue. El lint focal se ejecutó con una copia temporal de la configuración desactivando sólo el motor type-aware, debido al Node de Homebrew roto de esta máquina; se usó un Node 22 aislado y no se modificó la configuración global del proyecto.
 
 ## Pendiente antes de declarar aceptación completa
 
 La conversación real debe demostrar uso autónomo de tools, comprensión de píxeles por el modelo seleccionado, buen criterio visual y continuidad entre turnos. Faltan además un ensayo de persistencia/recuperación con cierre real del proceso y dos clientes sobre los servicios de sincronización, pruebas de rendimiento incluyendo red/modelo, integración real de proveedores externos y la aceptación manual de la guía completa.
 
-La implementación no se desplegó en `miro.byafluence.com`. Los tests no permiten anunciar que la versión actualmente publicada ya tenga estas capacidades.
+La implementación está desplegada en `miro.byafluence.com`, pero la aceptación final no está aprobada. Los tests locales y el gate Chromium no permiten anunciar que la versión publicada haya superado todavía la UAT visual, la exportación/importación real y la recarga/persistencia; consultar [PRODUCCION.md](./PRODUCCION.md) para el estado observado y los siguientes gates.

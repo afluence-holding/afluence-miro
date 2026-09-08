@@ -22,6 +22,7 @@ import {
 } from '@blocksuite/affine/std/gfx';
 import { Text } from '@blocksuite/affine/store';
 import { Bound } from '@blocksuite/global/gfx';
+import * as Y from 'yjs';
 
 import {
   createNativeBlock,
@@ -649,6 +650,29 @@ export class NativeCanvasAdapter {
     }
     const parent = this.getModel(parentId);
     if (!parent || !isGfxGroupCompatibleModel(parent)) {
+      // Store models and the GFX container index are hydrated after the outer
+      // Yjs transaction. A frame created earlier in this same canvas apply is
+      // therefore already durable, but not observable through getModel yet.
+      // Record its native child relation directly so the post-transaction
+      // observers hydrate the exact relationship requested by the plan.
+      const yParent = this.host.store.spaceDoc
+        .getMap<Y.Map<unknown>>('blocks')
+        .get(parentId);
+      if (
+        yParent instanceof Y.Map &&
+        yParent.get('sys:flavour') === 'affine:frame'
+      ) {
+        const childElementIds = yParent.get('prop:childElementIds');
+        if (!(childElementIds instanceof Y.Map)) {
+          throw new Error(`Parent ${parentId} cannot contain canvas elements`);
+        }
+        if (current && isGfxGroupCompatibleModel(current)) {
+          const removeChild = current.removeChild.bind(current);
+          removeChild(model);
+        }
+        childElementIds.set(id, true);
+        return;
+      }
       throw new Error(`Parent ${parentId} is not a native canvas container`);
     }
     if (current && isGfxGroupCompatibleModel(current)) {

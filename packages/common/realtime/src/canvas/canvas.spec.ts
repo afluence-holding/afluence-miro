@@ -32,6 +32,32 @@ function connector(id: string, sourceId: string, targetId: string): CanvasNode {
 }
 
 describe('canvas contract validation', () => {
+  it('acepta scope vacío como selección de todo el canvas', () => {
+    const destination = { type: 'existing', documentId: 'doc' };
+    const cases = [
+      ['canvas_read', { destination, scope: {} }],
+      ['canvas_render', { destination, scope: {} }],
+      ['canvas_focus', { destination, scope: {} }],
+      ['canvas_export', { destination, scope: {}, format: 'png' }],
+    ] as const;
+
+    for (const [tool, args] of cases) {
+      expect(validateCanvasToolArgs(tool, args)).toMatchObject({
+        ok: true,
+        value: { scope: {} },
+      });
+    }
+  });
+
+  it('sigue rechazando propiedades desconocidas en scope', () => {
+    expect(
+      validateCanvasToolArgs('canvas_read', {
+        destination: { type: 'existing', documentId: 'doc' },
+        scope: { unexpected: true },
+      })
+    ).toMatchObject({ ok: false, error: { code: 'INVALID_PLAN' } });
+  });
+
   it('rechaza geometría no finita y propiedades desconocidas', () => {
     expect(
       validateCanvasNode({

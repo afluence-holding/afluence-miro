@@ -837,9 +837,16 @@ export class CanvasRuntime {
   private read(args: CanvasToolArgsMap['canvas_read']) {
     this.assertDestination(args.destination);
     const limit = Math.min(args.limit ?? 100, CANVAS_MAX_READ_OBJECTS);
-    const start = args.cursor ? Number.parseInt(args.cursor, 10) : 0;
-    if (!Number.isSafeInteger(start) || start < 0) {
-      throw new RuntimeFailure('INVALID_PLAN', 'Read cursor is invalid.');
+    const start = args.cursor === undefined ? 0 : Number(args.cursor);
+    if (
+      (args.cursor !== undefined && !/^(0|[1-9]\d*)$/.test(args.cursor)) ||
+      !Number.isSafeInteger(start) ||
+      start < 0
+    ) {
+      throw new RuntimeFailure(
+        'INVALID_PLAN',
+        'Read cursor is invalid. Omit cursor on the first read; otherwise use the exact nextCursor returned by canvas_read.'
+      );
     }
     const matches = this.nodesInScope(args.scope);
     const nodes = matches.slice(start, start + limit);
@@ -3539,7 +3546,18 @@ export class CanvasRuntime {
 
   private nodesInScope(scope: CanvasScope) {
     const ids = scope.ids ? new Set(scope.ids) : undefined;
-    return this.adapter.allNodes.filter(node => {
+    const allNodes = this.adapter.allNodes;
+    if (ids) {
+      const existingIds = new Set(allNodes.map(node => node.id));
+      const missing = [...ids].filter(id => !existingIds.has(id));
+      if (missing.length) {
+        throw new RuntimeFailure(
+          'INVALID_PLAN',
+          `Unknown scope IDs: ${missing.slice(0, 10).join(', ')}. Use exact IDs returned by canvas_read or a receipt. For the whole canvas use scope: {} and omit ids; "*" is not a wildcard.`
+        );
+      }
+    }
+    return allNodes.filter(node => {
       if (ids && !ids.has(node.id)) return false;
       return !scope.bounds || intersects(node.bounds, scope.bounds);
     });

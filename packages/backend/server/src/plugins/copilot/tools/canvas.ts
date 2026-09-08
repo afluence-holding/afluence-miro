@@ -25,7 +25,13 @@ const bounds = z
     h: finite.positive(),
   })
   .strict();
-const objectIds = z.array(id).min(1).max(200);
+const objectIds = z
+  .array(id)
+  .min(1)
+  .max(200)
+  .describe(
+    'Exact node IDs returned by canvas_read or an operation receipt. There is no wildcard: never use "*" or "all". Omit ids to address all nodes.'
+  );
 const canvasScope = z
   .object({
     ids: objectIds.optional(),
@@ -33,7 +39,10 @@ const canvasScope = z
     includeIncidentConnectors: z.boolean().optional(),
     includeAutoResizeContainers: z.boolean().optional(),
   })
-  .strict();
+  .strict()
+  .describe(
+    'Use {} for the whole canvas. To narrow the scope, use exact node ids or world-coordinate bounds. If both are provided their intersection is selected. Omit unused fields; never invent wildcard IDs.'
+  );
 const destination = z.discriminatedUnion('type', [
   z.object({ type: z.literal('existing'), documentId: id }).strict(),
   z
@@ -157,7 +166,14 @@ export const CanvasToolSchemas = {
       destination,
       scope: canvasScope,
       fields: z.array(z.string().min(1).max(128)).min(1).max(30).optional(),
-      cursor: z.string().min(1).max(4096).optional(),
+      cursor: z
+        .string()
+        .min(1)
+        .max(4096)
+        .optional()
+        .describe(
+          'Omit on the first read. For pagination, pass only the exact nextCursor returned by canvas_read; never invent an offset or cursor.'
+        ),
       limit: z.number().int().min(1).max(200).optional(),
     })
     .strict(),
@@ -186,7 +202,11 @@ export const CanvasToolSchemas = {
     .object({
       destination,
       scope: canvasScope.optional(),
-      planId: id.optional(),
+      planId: id
+        .optional()
+        .describe(
+          'Only for previewing an unapplied plan. Omit after canvas_apply to render the live canvas using scope instead.'
+        ),
       contentRevision: revision.optional(),
       scale: z.number().finite().min(0.1).max(4).optional(),
     })
@@ -410,7 +430,7 @@ export function createCanvasReadTool(
     delegated,
     options,
     'canvas_read',
-    'Read a bounded, revisioned canvas projection from the linked live editor. Read before changing content and request only the fields and scope needed.'
+    'Read a bounded, revisioned canvas projection from the linked live editor before changing content. Omit cursor on the first read; paginate only with a returned nextCursor. Request the fields and scope needed, including nearby objects when checking spacing.'
   );
 }
 export function createCanvasValidateTool(
@@ -449,7 +469,7 @@ export function createCanvasRenderTool(
     delegated,
     options,
     'canvas_render',
-    'Render a linked canvas scope or preview plan for structural and visual verification. Report only pixels and revision metadata actually returned.'
+    'Render the current live canvas with destination and scope, omitting planId. To preview an unapplied plan, use planId instead. After canvas_apply the old preview is stale: render the live scope without planId. Report only pixels and revision metadata actually returned.'
   );
 }
 export function createCanvasApplyTool(

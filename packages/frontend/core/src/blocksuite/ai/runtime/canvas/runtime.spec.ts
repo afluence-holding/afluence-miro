@@ -220,6 +220,50 @@ describe('CanvasRuntime durable executor invariants', () => {
 
   afterEach(() => vi.restoreAllMocks());
 
+  it('rejects unknown scope IDs instead of reporting a populated canvas as empty', async () => {
+    const testHost = host();
+    nodes(testHost).set('one', node('one'));
+    const canvas = runtime(testHost);
+    const revision = canvas.getContentRevision();
+    const invalidScope = { ...scope, ids: ['*'] };
+
+    for (const tool of [
+      'canvas_read',
+      'canvas_focus',
+      'canvas_render',
+    ] as const) {
+      const result = await canvas.execute(tool, {
+        destination,
+        scope: invalidScope,
+      });
+      expect(result).toMatchObject({
+        ok: false,
+        error: {
+          code: 'INVALID_PLAN',
+          message: expect.stringContaining('scope: {}'),
+        },
+      });
+    }
+    const all = await canvas.execute('canvas_read', { destination, scope: {} });
+    expect(all).toMatchObject({ ok: true, data: { nodes: [{ id: 'one' }] } });
+    expect(canvas.getContentRevision()).toBe(revision);
+  });
+
+  it('rejects fabricated cursors rather than parsing their numeric prefix', async () => {
+    const canvas = runtime(host());
+    for (const cursor of ['*', '0anything']) {
+      expect(
+        await canvas.execute('canvas_read', { destination, scope: {}, cursor })
+      ).toMatchObject({
+        ok: false,
+        error: {
+          code: 'INVALID_PLAN',
+          message: expect.stringContaining('Omit cursor'),
+        },
+      });
+    }
+  });
+
   it('does not duplicate nodes when the same request retries the same plan', async () => {
     const testHost = host();
     const canvas = runtime(testHost);

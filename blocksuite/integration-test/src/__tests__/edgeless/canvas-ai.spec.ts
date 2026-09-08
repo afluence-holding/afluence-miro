@@ -149,6 +149,7 @@ function funnelNodes(): CanvasNode[] {
   const shapes = Array.from({ length: 6 }, (_, index) => ({
     id: `funnel-shape-${index + 1}`,
     kind: 'shape' as const,
+    parentId: 'funnel-frame',
     layout: 'auto' as const,
     bounds: { x: 48 + index * 184, y: 172, w: 120, h: 72 },
     props: {
@@ -163,6 +164,7 @@ function funnelNodes(): CanvasNode[] {
   const connectors = shapes.slice(0, -1).map((shape, index) => ({
     id: `funnel-edge-${index + 1}`,
     kind: 'connector' as const,
+    parentId: 'funnel-frame',
     bounds: { x: 0, y: 0, w: 1, h: 1 },
     props: { routing: 'avoid-obstacles' },
     sourceId: shape.id,
@@ -270,6 +272,11 @@ describe('Edgeless AI canvas en Chromium', () => {
     expect(
       initialRead.nodes.filter(node => node.kind === 'frame')
     ).toHaveLength(1);
+    expect(
+      initialRead.nodes
+        .filter(node => node.kind === 'shape' || node.kind === 'connector')
+        .every(node => node.parentId === firstReceipt.idMap['funnel-frame'])
+    ).toBe(true);
 
     const manuallyEditedId = shapes.find(
       shape => shape.props.text === 'Captura'
@@ -538,6 +545,120 @@ describe('Edgeless AI canvas en Chromium', () => {
     });
     await wait();
     await page.screenshot({ path: '/tmp/edgeless-ai-funnel.png' });
+    runtime.dispose();
+  });
+
+  test('reasigna una figura a un frame creado en el mismo commit', async () => {
+    cleanup = await setupEditor('edgeless');
+    const runtime = new CanvasRuntime({
+      host: window.editor.host!,
+      workspaceId: 'browser-workspace',
+      docId: 'doc:home',
+    });
+    const frameScope = { bounds: { x: 0, y: 0, w: 1000, h: 500 } };
+    const initialPlan = assertOk<{ plan: CanvasPlan }>(
+      await runtime.execute(
+        'canvas_validate',
+        {
+          destination,
+          baseContentRevision: runtime.getContentRevision(),
+          requestedScope: frameScope,
+          operations: [
+            {
+              type: 'create',
+              node: {
+                id: 'old-frame',
+                kind: 'frame',
+                bounds: { x: 0, y: 0, w: 400, h: 300 },
+                props: { title: 'Anterior' },
+              },
+            },
+            {
+              type: 'create',
+              node: {
+                id: 'moving-shape',
+                kind: 'shape',
+                parentId: 'old-frame',
+                bounds: { x: 40, y: 80, w: 120, h: 64 },
+                props: { text: 'Mover' },
+              },
+            },
+          ],
+        },
+        { canWrite: true }
+      )
+    ).plan;
+    const initialReceipt = assertOk<CanvasReceipt>(
+      await runtime.execute(
+        'canvas_apply',
+        { planId: initialPlan.planId, requestId: 'frame-reparent-initial' },
+        { canWrite: true }
+      )
+    );
+    expect(initialReceipt.execution).toBe('applied');
+    const shapeId = initialReceipt.idMap['moving-shape'];
+    const oldFrameId = initialReceipt.idMap['old-frame'];
+    if (!shapeId || !oldFrameId)
+      throw new Error('Initial frame identities were not allocated.');
+
+    const reparentPlan = assertOk<{ plan: CanvasPlan }>(
+      await runtime.execute(
+        'canvas_validate',
+        {
+          destination,
+          baseContentRevision: runtime.getContentRevision(),
+          requestedScope: frameScope,
+          operations: [
+            {
+              type: 'create',
+              node: {
+                id: 'new-frame',
+                kind: 'frame',
+                bounds: { x: 500, y: 0, w: 400, h: 300 },
+                props: { title: 'Nuevo' },
+              },
+            },
+            {
+              type: 'update',
+              target: { id: shapeId },
+              patch: { parentId: 'new-frame' },
+            },
+          ],
+        },
+        { canWrite: true }
+      )
+    ).plan;
+    const reparented = assertOk<CanvasReceipt>(
+      await runtime.execute(
+        'canvas_apply',
+        { planId: reparentPlan.planId, requestId: 'frame-reparent-move' },
+        { canWrite: true }
+      )
+    );
+    expect(reparented.execution, JSON.stringify(reparented.warnings)).toBe(
+      'applied'
+    );
+    const newFrameId = reparented.idMap['new-frame'];
+    if (!newFrameId) throw new Error('New frame identity was not allocated.');
+    const read = assertOk<{ nodes: readonly CanvasNode[] }>(
+      await runtime.execute('canvas_read', {
+        destination,
+        scope: frameScope,
+        limit: 100,
+      })
+    );
+    expect(read.nodes.find(node => node.id === shapeId)?.parentId).toBe(
+      newFrameId
+    );
+    const store = window.editor.host!.store;
+    const oldFrame = store.getModelById(oldFrameId) as {
+      props: { childElementIds?: Record<string, boolean> };
+    } | null;
+    const newFrame = store.getModelById(newFrameId) as {
+      props: { childElementIds?: Record<string, boolean> };
+    } | null;
+    expect(oldFrame?.props.childElementIds?.[shapeId]).toBeUndefined();
+    expect(newFrame?.props.childElementIds?.[shapeId]).toBe(true);
     runtime.dispose();
   });
 

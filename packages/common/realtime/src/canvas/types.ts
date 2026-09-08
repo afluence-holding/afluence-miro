@@ -69,6 +69,7 @@ export interface CanvasNodeReference {
 }
 
 export interface CanvasScope {
+  /** An empty scope selects the whole canvas. */
   readonly ids?: readonly CanvasId[];
   readonly bounds?: CanvasBounds;
   readonly includeIncidentConnectors?: boolean;

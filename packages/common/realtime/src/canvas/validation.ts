@@ -190,8 +190,6 @@ export function parseCanvasScope(value: unknown, path = 'scope'): CanvasScope {
           ),
         }),
   };
-  if (!result.ids && !result.bounds)
-    fail(path, 'Debe identificar IDs, bounds, o ambos.');
   return result;
 }
 
