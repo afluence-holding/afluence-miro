@@ -21,6 +21,13 @@ RUN touch packages/backend/native/server-native.arm64.node \
   packages/backend/native/server-native.x64.node
 RUN yarn workspace @affine/server build
 
+# The base canary image does not necessarily carry the same production
+# dependencies as the server bundle built from this checkout. Create a
+# production-only dependency layer after all bundles are complete.
+FROM frontend-build AS server-deps
+RUN yarn workspaces focus @affine/server --production \
+  && find node_modules/@affine -maxdepth 1 -type l -delete
+
 # The upstream image ships a precompiled server-native binding. Build the
 # binding from this checkout as well so backend fixes (including BYOK
 # diagnostics) are actually present at runtime.
@@ -57,11 +64,7 @@ COPY --from=frontend-build /app/packages/frontend/apps/web/dist /app/static
 COPY --from=frontend-build /app/packages/frontend/admin/dist /app/static/admin
 COPY --from=frontend-build /app/packages/frontend/core/public/ /app/static/mobile/
 COPY --from=frontend-build /app/packages/backend/server/dist /app/dist
-# The canary runtime can lag behind this checkout's queue integration. Keep
-# the queue packages in sync with the server bundle compiled above.
-COPY --from=frontend-build /app/node_modules/@nestjs/bullmq /app/node_modules/@nestjs/bullmq
-COPY --from=frontend-build /app/node_modules/@nestjs/bull-shared /app/node_modules/@nestjs/bull-shared
-COPY --from=frontend-build /app/node_modules/bullmq /app/node_modules/bullmq
+COPY --from=server-deps /app/node_modules /app/node_modules
 COPY --from=native-build /out/server-native.x64.node /app/dist/server-native.x64.node
 COPY scripts/render-afluence-config.mjs /app/scripts/render-afluence-config.mjs
 COPY --chmod=755 scripts/start-afluence.sh /app/scripts/start-afluence.sh
